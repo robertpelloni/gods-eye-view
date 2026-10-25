@@ -35,6 +35,17 @@ const STOPS = [
   [70, '#ff00ff'],
   [80, '#05ede0'],
 ];
+const RAINVIEWER_STOPS = [
+  [10, '#cec087'],
+  [20, '#00a3e0'],
+  [30, '#005588'],
+  [35, '#ffee00'],
+  [40, '#ffaa00'],
+  [45, '#ff4400'],
+  [50, '#c10000'],
+  [55, '#ffaaff'],
+  [65, '#ffffff'],
+];
 const LIGHTNING_STOPS = [
   ['0.1', '#FFFFCC'],
   ['1', '#FFA400'],
@@ -276,7 +287,9 @@ export function createWeatherLayer({
         ? 'Lightning density'
         : 'Satellite clouds',
     icon: radar ? '◉' : lightning ? 'ϟ' : '☁',
-    source: 'NOAA nowCOAST · OBSERVED',
+    get source() {
+      return `${product === 'radar-global' ? 'RainViewer' : 'NOAA nowCOAST'} · OBSERVED`;
+    },
     updateInterval: lightning ? 600_000 : 120_000,
     init(nextViewer) {
       viewer = nextViewer;
@@ -435,8 +448,9 @@ export function createWeatherLayer({
         rendering?.setAlpha(opacity === 'light' ? 0.4 : satellite ? 0.7 : 0.8);
       }
       if (
-        satellite &&
-        ['clouds', 'clouds-regional'].includes(params.product) &&
+        ((satellite &&
+          ['clouds', 'clouds-regional'].includes(params.product)) ||
+          (radar && ['radar', 'radar-global'].includes(params.product))) &&
         params.product !== product
       ) {
         product = params.product;
@@ -518,7 +532,7 @@ export function createWeatherLayer({
     },
     getParams() {
       return radar
-        ? { opacity }
+        ? { product, opacity }
         : satellite
           ? { product, opacity, infrared }
           : { product, opacity };
@@ -647,12 +661,16 @@ export function createWeatherLayer({
         readout: true,
         summary: {
           label: radar
-            ? t('Rain radar · US')
+            ? product === 'radar-global'
+              ? 'Rain radar · Global'
+              : 'Rain radar · US'
             : lightning
               ? t('Lightning density · 15 min')
               : t('Satellite clouds'),
           coverage: radar
-            ? 'CONUS'
+            ? product === 'radar-global'
+              ? 'Global · where radars exist'
+              : 'CONUS'
             : lightning
               ? t('Americas + Pacific')
               : product === 'clouds'
@@ -677,6 +695,21 @@ export function createWeatherLayer({
           units: radar ? 'dBZ' : lightning ? t('strikes/km²/min ×10³') : '',
         },
         chips: [
+          ...(radar
+            ? [
+                ['radar', 'US (NOAA)'],
+                ['radar-global', 'Global (RainViewer)'],
+              ].map(([value, label]) => ({
+                id: value,
+                label,
+                active: product === value,
+                params: { product: value },
+                title:
+                  value === 'radar'
+                    ? 'NOAA MRMS, contiguous US, about 4-minute updates'
+                    : 'RainViewer global composite from national radar networks, past 2 hours',
+              }))
+            : []),
           ...(satellite
             ? [
                 ['clouds-regional', t('N. America')],
@@ -724,7 +757,9 @@ export function createWeatherLayer({
           {
             id: 'coverage',
             label: radar
-              ? t('View US radar')
+              ? product === 'radar-global'
+                ? 'View coverage'
+                : 'View US radar'
               : lightning
                 ? t('View Americas & Pacific')
                 : t('View coverage'),
@@ -734,7 +769,12 @@ export function createWeatherLayer({
         ],
         legend:
           radar || lightning
-            ? (lightning ? LIGHTNING_STOPS : STOPS).map(([label, color]) => ({
+            ? (lightning
+                ? LIGHTNING_STOPS
+                : product === 'radar-global'
+                  ? RAINVIEWER_STOPS
+                  : STOPS
+              ).map(([label, color]) => ({
                 label: String(label),
                 color,
                 blurb: lightning
@@ -747,21 +787,27 @@ export function createWeatherLayer({
               }))
             : [],
         info: hostHidden
-          ? shownHost
-          : `${infoHeading}\n${infoTime}${missing ? `\n${missing}` : ''}${manifest?.stale ? `\n${t('STALE · cached source metadata')}` : ''}${shownProblem ? `\n${shownProblem}` : ''}\n${infoCoverage}${outside ? `\n${t('Map center is outside source coverage')}` : ''}${infoMotion ? `\n${infoMotion}` : ''}`,
-        infoTitle: lightning
-          ? t(
-              'NOAA/NWS 15-minute lightning density derived from Vaisala NLDN/GLD360. Coverage 110°E across the Pacific/Americas to 0°, 25°S–80°N. Not a live strike count, global coverage or a safety warning.',
-            )
-          : radar
-            ? t(
-                'NOAA MRMS radar echoes indicate precipitation patterns, not rain rate, a storm warning or a future forecast. Native source approximately 1 km; display is limited to level 6. Frames use exact advertised observation times.',
-              )
-            : t(
-                'GOES-19/18 longwave infrared Band 14 regional; NESDIS global longwave mosaic. Clouds only dims everything but bright, cold cloud tops; a brightness filter, not a cloud mask. Coverage and freshness differ by region.',
-              ),
+          ? hostStatus
+          : `${radar ? 'RADAR REFLECTIVITY · dBZ' : lightning ? 'LIGHTNING DENSITY · 15 min accumulation' : product === 'clouds' ? 'GLOBAL INFRARED · hourly' : 'GOES INFRARED · ~5 min'}\n${time ? `${followLatest ? 'Latest observation' : 'History'}: ${utc(time)}\n${lag}${current && !followLatest ? ` · frame ${index + 1}/${times.length}` : ''}${loading ? ' · loading' : ''}` : `Observation: unavailable${loading ? ' · loading' : ''}`}${missing ? `\n${missing}` : ''}${manifest?.stale ? '\nSTALE · cached source metadata' : ''}${error || diagnostic?.error ? '\n' + (error || diagnostic.error) : ''}\n${radar ? (product === 'radar-global' ? 'Global · where radars exist · gaps ≠ no rain' : 'Contiguous US · gaps ≠ no rain') : lightning ? 'Americas + Pacific · not individual strikes\nColor: strikes/km²/min ×10³' : product === 'clouds' ? '60°S–60°N · typically 2–3 h delayed' : 'North America · infrared imagery'}${outside ? '\nMap center is outside source coverage' : ''}${motion?.matches ? (clock ? '\nReduced motion · history playback unavailable' : '\nReduced motion · manual history available') : ''}`,
+        infoTitle:
+          product === 'radar-global'
+            ? 'RainViewer global radar composite (dBZ). Coverage follows national radar networks; a gap does not mean no rain.'
+            : lightning
+              ? 'NOAA/NWS 15-minute lightning density derived from Vaisala NLDN/GLD360. Coverage 110°E across the Pacific/Americas to 0°, 25°S–80°N. Not a live strike count, global coverage or a safety warning.'
+              : radar
+                ? 'NOAA MRMS radar echoes indicate precipitation patterns, not rain rate, a storm warning or a future forecast. Native source approximately 1 km; display is limited to level 6. Frames use exact advertised observation times.'
+                : 'GOES-19/18 longwave infrared Band 14 regional; NESDIS global longwave mosaic. Clouds only dims everything but bright, cold cloud tops; a brightness filter, not a cloud mask. Coverage and freshness differ by region.',
       };
       controls.summary.settings = [
+        ...(radar
+          ? [
+              {
+                id: 'region',
+                label: 'REGION',
+                chips: controls.chips.filter(({ params }) => params.product),
+              },
+            ]
+          : []),
         ...(satellite
           ? [
               {
@@ -812,7 +858,7 @@ export function createWeatherLayer({
         loading,
         error: error || rendering?.getDiagnostics().error || null,
         stale: Boolean(manifest?.stale || observationDelayed()),
-        source: 'NOAA nowCOAST',
+        source: product === 'radar-global' ? 'RainViewer' : 'NOAA nowCOAST',
         observedAt: shownTime(),
       };
     },
