@@ -1,0 +1,333 @@
+/* ------------------------------------------------------------------ */
+/* Now feed: header, altitude filter, masonry + wide rows             */
+/* ------------------------------------------------------------------ */
+
+#view-today {
+  background: var(--ground);
+}
+
+.feed-inner {
+  will-change: transform;
+}
+
+.feed-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: calc(var(--gutter) + var(--safe-r));
+}
+
+.feed-hero .large-title {
+  letter-spacing: -0.035em;
+}
+
+.feed-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding-bottom: 6px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.feed-clock b {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+#view-today .title-sub {
+  gap: 7px;
+  color: var(--ink-3);
+  font-size: 0.625rem;
+}
+
+#view-today .title-sub .live-dot {
+  --fam: var(--ink);
+  width: 5px;
+  height: 5px;
+}
+
+/* Altitude filter: an altimeter, not a segmented control. */
+.bandbar {
+  position: sticky;
+  top: calc(var(--safe-t) + 52px);
+  z-index: 4;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  margin-top: 14px;
+  padding: 0 calc(8px + var(--safe-r)) 0 calc(8px + var(--safe-l));
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+
+.bandbar::-webkit-scrollbar {
+  display: none;
+}
+
+.bandbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(5, 6, 7, 0.82);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 0.5px solid var(--hairline);
+  opacity: 0;
+  transition: opacity var(--dur-1) linear;
+}
+
+#view-today.is-scrolled .bandbar::before {
+  opacity: 1;
+}
+
+#view-today.is-scrolled .navbar::before {
+  border-bottom-color: transparent;
+}
+
+.bandbar [data-band] {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  min-height: 50px;
+  padding: 7px 10px 8px;
+  color: var(--ink-3);
+  transition: color var(--dur-1) linear;
+}
+
+.bandbar [data-band]::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 0;
+  height: 1px;
+  background: var(--hairline-strong);
+  transition:
+    height var(--dur-2) var(--ease-out),
+    background var(--dur-2) linear;
+}
+
+.bandbar [data-band][aria-selected='true'] {
+  color: var(--ink);
+}
+
+.bandbar [data-band][aria-selected='true']::before {
+  height: 2px;
+  background: var(--band, var(--ink));
+}
+
+.bb-n {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.bb-n i {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--band);
+}
+
+.bb-r {
+  font-size: 0.5625rem;
+  color: var(--ink-4);
+}
+
+[aria-selected='true'] > .bb-r {
+  color: var(--ink-3);
+}
+
+.navbar .nav-trailing {
+  gap: 6px;
+}
+
+.near-chip {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.near-chip .i {
+  font-size: 0.875rem;
+}
+
+.near-chip[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--ground);
+  box-shadow: none;
+}
+
+.feed-note {
+  padding: 10px calc(8px + var(--safe-r)) 0 calc(8px + var(--safe-l));
+}
+
+.near-prompt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 10px;
+  font-size: var(--t-foot);
+  background: var(--ground-2);
+  box-shadow: inset 0 0 0 0.5px var(--hairline-strong);
+}
+
+.near-prompt > .i {
+  font-size: 1.2rem;
+  color: var(--ink);
+}
+
+.near-prompt div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.near-prompt span {
+  color: var(--ink-3);
+  font-size: var(--t-cap);
+  line-height: 1.3;
+}
+
+.near-prompt .pill-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: var(--t-foot);
+}
+
+.feed-body {
+  padding: 10px calc(8px + var(--safe-r)) 0 calc(8px + var(--safe-l));
+}
+
+.feed-body.swap {
+  animation: view-in 320ms var(--ease-out) both;
+}
+
+.masonry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mcol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.masonry + .wide-row,
+.wide-row + .masonry,
+.wide-row + .wide-row {
+  margin-top: 8px;
+}
+
+.feed-empty {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--ink-4);
+}
+
+/* Skeleton */
+.card.skel .card-media,
+.sk-line {
+  background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0) 30%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0) 70%
+    )
+    var(--ground-3);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.sk-line {
+  height: 10px;
+  border-radius: 2px;
+  margin: 3px 0 8px;
+}
+
+.sk-line.short {
+  width: 55%;
+  margin-bottom: 2px;
+}
+
+.feed-end {
+  text-align: center;
+  color: var(--ink-4);
+  padding: 28px 0 0;
+}
+
+/* Pull to refresh: an orbit of eight ticks. */
+.ptr {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: calc(var(--safe-t) + 62px);
+  height: 40px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  --p: 0;
+}
+
+.ptr-spinner {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  transform: rotate(calc(var(--p) * 200deg));
+}
+
+.ptr-spinner i {
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  width: 2px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--ink);
+  transform: rotate(calc(var(--i) * 45deg)) translateY(-11px);
+  opacity: clamp(0, calc((var(--p) * 8 - var(--i)) * 1), 1);
+}
+
+.ptr.spinning .ptr-spinner {
+  animation: spin 900ms steps(8) infinite;
+}
+
+.ptr.spinning .ptr-spinner i {
+  opacity: calc(0.25 + var(--i) * 0.1);
+}
+
+/* The Near lens: the feed becomes a distance-ordered list around you. */
+#view-today.is-near .feed-count::after {
+  content: ' · nearest first';
+}

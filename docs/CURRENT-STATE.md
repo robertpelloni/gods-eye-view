@@ -1,6 +1,406 @@
 # God's Eye View Current State
 
-Wind appears in the Weather group before Utilities and is an optional GFS 10 m forecast overlay. Source acquisition has deadline and body budgets, disconnect cancellation and one-minute failure backoff. The row distinguishes model issue time from forecast valid time. Animation starts only with a field, stops on disable/destruction, preserves trails between unchanged canvas dimensions and scales from 200 to 4,000 particles with viewport area. Application catalog construction owns each instance.
+Shared distance checks use `src/geoDistance.js` with `{ lat, lon }` points and
+the IUGG mean spherical Earth radius, 6371.0088 km. `greatCircleKm` is
+canonical; `greatCircleMeters` is its exact metre conversion. Missing,
+non-finite, and out-of-range points (latitude outside ±90, longitude outside
+±180) return `Infinity`, so threshold and nearest-item consumers exclude invalid
+positions. Older exported `haversineKm` entry points remain as compatibility
+wrappers only. `src/data/approxDistance.js`, the equirectangular
+viewer-proximity approximation, is deliberately separate, as are intentional
+local angular, projection, ellipsoidal prefilter, and small-viewport
+approximations. Four great-circle copies remain for a follow-up:
+`src/data/adminBoundaries.js` and `src/tools/area.js` pass unwrapped longitudes
+across the antimeridian, so they cannot use the strict ±180 check as-is, and
+`src/sources/adsbRecords.js` and `server/providers/common/geo.js` keep their own
+implementations.
+
+Vessel sources can report healthy empty coverage using a current, complete
+snapshot with zero raw rows, a healthy transport and a positive last-message
+time. This clears obsolete contacts and settles startup without manufacturing
+position timestamps. Stale, incomplete and malformed empty results retain the
+existing recovery behavior.
+
+Catalog source contracts and their consuming layers are declared in
+`src/app/sourceComposition.js`. Omitted or null acquisition sources preserve layer
+registration and serialization, report unavailable, and are refused by the existing
+visibility lifecycle before initialization. Availability is held in an explicit
+catalog lookup supplied to the lifecycle, without modifying layer instances;
+unavailable reasons use the layer display name. Invalid supplied methods still fail
+construction. `createStandaloneApplication` and `createStandaloneCatalog` accept
+`sources` overrides; unspecified entries retain
+standalone defaults, and null entries explicitly remove a source. Street Level
+continues to accept an explicit provider list. An empty Street Level provider
+list uses the same unavailable lifecycle and disabled layer toggle. Directions (`getRoute`) and
+Recent Imagery (`searchHls`, `getThumbnail`, `getTileTemplate`) use the same source
+configuration boundary. Standalone selects their default adapters; layers retain
+route normalization, imagery selection and rendering. Recent Imagery adapters
+consume the existing HLS/VIIRS product schema and provide their own tile attribution.
+The source factories are exported at `layers/directions/source` and
+`layers/recent-imagery/source`. Configuration is applied at construction time;
+this does not introduce live source replacement.
+
+Application catalog composition accepts an optional `streetLevelProviders` list.
+An explicit list replaces the default Mapillary provider; an empty list removes
+all imagery providers. Without that option, Mapillary is registered only when
+`sources.mapillary` is supplied. An absent source leaves Street Level registered
+with a truthful no-provider state, preserving layer controls and share tokens.
+Malformed selected sources and provider definitions still fail validation.
+An explicit provider list bypasses the unused Mapillary source, including its
+validation. Layer share identities and the legacy Mapillary `m` option remain
+stable. Custom provider switches use the `r` option (`example-1*panoramax-0`),
+with URL-safe separators and a shared layer-neutral boolean-switch codec, sorted by provider ID rather
+than registration order, and round-trip through links and stored state. A receiver
+applies only switches for its registered providers; absent custom switches leave
+current defaults unchanged. Explicit provider toggles persist only their requested
+switch IDs through the state coordinator; unrelated live values remain transient.
+The custom switch field is bounded to 256 characters;
+provider registration rejects compositions that cannot fit rather than truncating
+identities. A malformed or duplicate entry invalidates the complete custom-switch
+field. Existing whole-link size limits still apply.
+
+## Mobile app prototype — October 18, 2026
+
+`/mobile/` is a phone and foldable shell over the same engine, specified in
+[`mobile/DESIGN.md`](../mobile/DESIGN.md). It has five tabs: a situation feed,
+the globe, capture, reconstruction threads and the user's own captures.
+`mobile/globe/` is a phone-tuned Cesium engine. It blends Esri day imagery
+with NASA Black Marble night lights across the terminator, uses Google 3D
+tiles below 25 km when keyed, and builds its layers on the existing `/api`
+routes and source parsers. Capture signs each bundle on the device with a
+non-extractable ECDSA P-256 WebCrypto key held in IndexedDB. A bundle carries
+a SHA-256 media hash, a per-device hash chain, and the IMU and GPS trace.
+These signatures are browser equivalents of hardware attestation; they are
+not hardware attestation. Hypotheses and authors in the reconstruction
+threads are labelled example content. `npm run build` now emits
+`dist/mobile/index.html` beside the app, while `npm run build:panel` still
+builds the app page alone. `mobile/vision/index.html` is a self-contained
+concept mockup with illustrative data and no production code.
+
+## God's Eye View in conversations — October 2, 2026
+
+Tool answers that can be shown in God's Eye View include a view: camera, layers,
+style, map, marks and an aircraft or satellite to follow, written in the
+share-link format (`gods-eye-view/view`). `show_in_gods_eye_view` shows a view as live
+God's Eye View inside clients that display MCP Apps, and as a link everywhere.
+The panel runs the app's panel build (`npm run build:panel`, served at
+`/panel/`) and loads it, with its data, through the MCP server, so it works
+in Claude Desktop and in the Codex and ChatGPT desktop apps with a local
+server and no HTTPS. `?embed=1` shows the app as the globe alone and takes
+new views from the page that frames it; framing is off unless
+`GEV_EMBED_FRAME_ANCESTORS` allows the framing page. MCP leads with the tools that find
+what to show. See [tools and the MCP server](TOOLS.md).
+
+Stdio processes from one install share the panel key in
+`.gev-cache/mcp-panel-key`, resolved from the checkout rather than the client's
+working directory. First creation is atomic; malformed-file repairs select one
+winner and concurrent processes re-read it. A busy repair waits at most two
+seconds before falling back. If the cache cannot be read/written or repair remains
+busy, stderr reports the fallback to a per-process key; cross-process panels can
+still fail in that mode. An abandoned `.repair-lock` is left intact: after
+confirming no repair process is running, remove it to allow repair on restart.
+HTTP MCP servers retain per-server keys. This key is a panel routing guard, not
+authentication. Large-response continuations remain process-local and require
+consistent tool-call routing. Two-process reproduction is covered locally;
+Windows/Claude Desktop Cowork confirmation remains outstanding (#927).
+
+## Tools and local MCP server — October 1, 2026
+
+Tool argument string lengths follow JSON Schema Unicode code-point counts, so supplementary characters count once rather than as two UTF-16 units.
+
+Query timestamps outside the representable Date range are reported as null, preserving the rest of the result row.
+
+`gods-eye-view/tools` defines queries that answer questions from the app's data,
+and `gods-eye-view/tools/mcp` exposes a composed catalog over the Model Context
+Protocol. `npm run mcp` serves Core's tools over stdio to a local MCP client,
+reading from a running app's `/api` routes (default `http://localhost:4173`).
+The development and preview servers also serve the tools over HTTP at `/mcp`,
+accepting only direct local requests: a loopback host on the port reached,
+an `Origin` (when sent) from that same host, no proxy forwarding headers, and
+launcher sharing off.
+Queries cover earthquakes, active fires, recent launches, aircraft (in an
+area, by identifier, tracks, and type and route lookups), ships (in an area,
+by identifier, and tracks), satellites (next
+pass over a point, and those overhead now), public cameras (including a
+camera's current image), license plate reader cameras, radio stations, place search, routing, bike-share
+stations, transit vehicles, road traffic flow, weather, weather map images
+(radar, satellite, lightning), wind, the most recent satellite image of an
+area, submarine cables, datacenters and dams, the Bhote Koshi flood event pack, regional briefs, tropical cyclones, fire
+perimeters, terrain height, military installations and map features, plus a
+combined situation brief, military awareness around a point, the app's heads-up display caption, and a link that
+opens the app over an area. Tools reuse the layers' portable source factories, take a
+shared `area` argument (place name, bounding box, or point and radius) and cap
+lists at 25 rows by default. Voice offers the same queries next to its app
+actions: the session lists them, and the browser runs them through the same
+catalog, loaded on first use. See [tools and the MCP server](TOOLS.md).
+Aircraft altitude-band queries require a reported barometric or geometric altitude
+for each match, so a grounded contact that reports none is left out of a band too.
+Queries without an altitude band retain unknown-altitude contacts.
+
+Catalog calls check their cancellation signal immediately before executing a
+tool. Already-cancelled queries do not start; cancellation after execution starts
+continues to follow the existing tool and caller behavior.
+
+Fire-perimeter queries test polygon interiors and holes on continuous unwrapped
+longitudes, matching the short-edge convention used for boundary intersections.
+An outline crossing ±180° contains nearby boxes and radius areas without also
+containing their counterparts near Greenwich. Returned perimeter coordinates
+use a circular mean for longitude, including multipart outlines. Incident cards
+also use a circular longitude mean over the largest outer ring (excluding its
+repeated closing vertex). Their relative-area comparison follows short longitude
+edges so a small dateline-crossing part cannot outweigh a larger ordinary part.
+Regression coverage lives in `src/tools/area.test.mjs`,
+`src/tools/queries/environment.test.mjs` and
+`src/layers/perimeters/cards.test.mjs`.
+
+## Cyber HUD — September 30, 2026
+
+Display > HUD > Layout includes Cyber, also available through the HUD voice
+action and shared visual state. An explicit first transition into Cyber selects
+FLIR with Ironbow 0.42. An explicit switch back to another HUD layout restores
+the visual preset used before Cyber; restored links and scenes remain
+authoritative. The skin uses shared red/slate panel treatments in map and cockpit,
+with compact 200px collapsed controls and wider expanded panels. Other HUD
+layouts retain their existing presentation.
+Chamfered panel expand/collapse controls use an inset keyboard-focus outline and
+red hover border in both map and cockpit, so clipping does not hide the highlight.
+
+Cyber's map-side right rail opens one panel at a time while keeping collapsed
+launchers available. Display, CCTV and Context scroll their contents inside fixed
+headers and decorative frames. The narrow-screen rail remains scrollable to reach
+each panel. Radio retains the shared nested Context player and compact
+header disclosure, without relocating playback controls on theme changes.
+
+Voice help/error popups and Location/Visual Presets pins extend beyond their
+Cyber frames without being clipped: the shapes decorate non-interactive
+pseudo-elements. The lower-left telemetry card leaves room for attribution's
+full logo row. New panels can use the [shared surface contract](panel-surfaces.md)
+for theme tokens, rail input and a fixed header with a bounded scroll body.
+The contract is intentionally future-facing and opt-in; its first production
+adopter will land after this change. Existing owners still control disclosure,
+persistence and placement, while small-screen rail popup clipping and other
+integration limits remain documented in the contract.
+
+On desktop, Cyber raises the left rail so it clears the lower coordinate card.
+`layoutRightPanelRail` reads that rendered top as its measured `baseTop`, which
+keeps the right rail aligned. Cockpit retains its separate rail placement for
+its visor layout.
+
+Sonar has one contact-highlighting method. Native Cesium points, billboards and
+labels are treated in GPU draw commands without replacing their positions,
+identities or pick commands. Model and canvas/DOM overlays retain their own
+rendering paths. Sonar OFF stops the sweep while retaining Cyber's neutral
+contact treatment. Reduced motion disables the animated sweep; cockpit and
+hidden HUD states do not apply the map treatment. If the native shader is not
+supported, native contacts remain available and Display reports the limitation.
+No CSS scene-dimming fallback or effect selector is exposed.
+
+The Sonar controls adjust rings, range, power, opacity and sector. Sweep opacity
+affects detection painting rather than label cohort admission. Theme exit and
+renderer teardown release the derived GPU resources and restore owned model
+colors without replacing newer layer-owned color changes.
+
+The `set_cyber_sonar` voice action adjusts the same controls without switching
+themes or enabling omitted settings. State readback distinguishes configured
+settings from active map/contact effects. Sonar settings are session-only and
+return to their defaults on reload. Sliders accept integer values matching the
+action's ranges.
+
+Wind appears in the Weather group before Utilities. The surface-weather prototype
+uses keyless NOAA GFS or ECMWF IFS forecasts on an approximately 1° display grid.
+It defaults to 10 m wind trails over the existing basemap. Speed shading is an explicit choice; earlier v2 links retain their original speed-shading meaning.
+Weather rows contain only the toggle and source/meta line. Configuration lives
+in each WEATHER card's Settings section: model, No color field, Speed, Pressure,
+Temperature, wind units, Pause/Resume and **Inspect center** for wind; coverage,
+image treatment and opacity controls for observed products. Cyclone cards carry
+a Storms section whose entries select and fly to the advisory, plus the official
+advisory link. Settings and Storms default closed; disclosure choices last for
+the page session.
+
+Inspect center adds an open Reading section to the wind card with captured
+coordinates, interpolated wind speed and meteorological direction, selected
+scalar, model, valid time and freshness. Clear reading removes the sample and
+map marker. Model/field changes or refresh also clear them. Unit chips reformat
+the captured sample without resampling or moving its marker. There is no separate
+floating reading surface. The card shows forecast issue and valid times; the
+observed-history timeline labels the oldest and newest available ticks. Animation
+moves through a fixed forecast; it does not advance forecast time.
+
+Temperature is air temperature at 2 m in °C; pressure is mean sea-level pressure
+in hPa. Optional companion fields come from the same model run/forecast as the
+wind. A missing or invalid companion leaves usable wind visible and identifies
+the selected field as unavailable. The color texture drapes the globe basemap; on
+photorealistic 3D Tiles the same 360×181 raster is a raised shell 5 km above the
+ellipsoid. With GPU rendering, the color field fades out below ~1,200 km camera
+height and is hidden at or below 200 km. Globe imagery keeps the smooth
+per-frame fade. On 3D Tiles, the shell alpha is quantized to 0.1 steps and
+updated only on camera move end, installation or rehome.
+GPU wind curves follow the sampled forecast field. Their 12 km display lift is a
+rendering aid; the source remains 10 m wind,
+not a forecast at the displayed height or a street-level observation.
+
+The renderer owns field installation, scalar imagery and the animation lifecycle.
+It bakes at most 7,200 curves (1,200 below 700 px) with at most 33 geographic points each on the CPU
+when installing a wind field, then advances a GPU phase along those curves
+without CPU projection of every point on every frame. Regional 30° batches are
+culled against the horizon and view frustum each frame, including when the globe
+is hidden; curves fade below 60 km and disappear at 15 km. Animation stops when
+no batch is visible and resumes on camera events. A canvas renderer remains
+available as a fallback. Pause and reduced-motion mode show a static flow view
+without an idle animation loop; hidden tabs suspend animation, and
+disable/destruction releases owned rendering
+resources and subscriptions. The globe relief helper is enabled with Wind and
+released when Wind is disabled. It uses terrain vertex normals
+for view-directed shading, falling back to global globe-curvature shading when
+normals are unavailable; the fallback does not show local hillshade. Neither mode
+adds elevation data or represents sunlight. Relief declines to replace an
+existing globe material, restores the prior empty material only while still
+owning it, and leaves later owners intact.
+Source acquisition retains deadlines, body budgets, disconnect cancellation,
+per-model/field singleflight caching and one-minute failure backoff. Application
+catalog construction owns each instance.
+
+Wind animates one forecast without advancing forecast time. Separate Weather
+observation layers provide radar and satellite history; none claims measured cloud volume.
+Weather imagery drapes onto the globe basemap. On photorealistic 3D Tiles each
+observed product is instead a raised, translucent shell: one rectangle over the
+product bounds at a fixed height (global infrared 5.5 km, regional infrared
+5.8 km, radar 6.2 km, lightning 6.6 km) showing one full-extent image per frame.
+Draping onto 3D Tiles was limited by Cesium's per-primitive texture budget and
+rebuilt every tile's coverage on each change; shells avoid both and show at any
+camera height. Shells draw first in the opaque pass, in height order,
+alpha-blended without depth writes: lightning draws over the other products,
+other map content draws over the shells, and shells are not pickable. A
+map-source change tears down one renderer and restages the shown observation on
+the other. A map without an imagery host pauses history while metadata refresh
+continues, then resumes when a host returns.
+Globe tiled products use 256 px tiles to maximum level 6. The tile proxy accepts
+size=256 (default), 512 or 1024 and keys cached bytes by size, retaining the
+24-hour immutable response and eight upstream slots. The image proxy serves every
+product as one whole-extent PNG at its advertised bounds, up to 4096×2048 for
+radar, regional infrared and lightning and 2048×1024 for global infrared
+(`size=W×H`, default the maximum), capped at 16 MiB and cached by product, time
+and size. NOAA returned each of these sizes from a single request in a live
+check; the WMS capabilities advertise no size maximum. Devices whose texture
+limit is below the product size request halved images.
+On 3D Tiles, each shell except global infrared also draws a detail window: the
+shell's own surface samples a second, 4096×2048 image of the area around the
+view inside that window, so the two images share one mesh and never blend. On
+camera move end and host switch the window is centred on the camera's ground
+footprint, max(2 × its longitude span, 6°) wide and half as tall, on a 0.5° grid
+inside the product bounds. It is used only while narrower than half the
+product's longitude extent and while the view overlaps the product; it moves
+only when the view centre leaves its inner half or the span changes by more
+than 50 %. A window applies once its image has drawn; until then the
+full-extent image covers it. A new frame swaps the full-extent image first and
+keeps the previous detail image until the new one decodes, over at most one
+newer frame; a moved window hides until its image arrives. Global
+infrared contrast depends on the requested extent, so it keeps one image. The
+image proxy accepts `bbox=west,south,east,north` for every product: inside the
+product bounds, 2:1 within 1 %, rounded to 0.25°, up to 4096×2048 (the
+default), cached by product, time, size and bbox. Diagnostics report
+`shell.detail` (`bbox`, `size`, `ready`, `enabled`).
+Clouds only applies a soft brightness ramp to decoded pixels once, using
+Cesium's sRGB-to-linear conversion (`channel ** 2.2`) and smoothstep from 0.40
+to 0.70. The old 0.55 threshold is the ramp midpoint. RGB and source alpha are
+preserved in Full image mode; both modes use the chosen layer opacity. This
+is a display filter, not a cloud mask. The cloud-filter slider is a continuous
+0–100% strength: 0% is Full, 100% is the existing Clouds only key, and
+intermediate values blend their alpha. The value commits on slider release to
+avoid restaging for every pointer event. Status refreshes retain the uncommitted
+drag preview; changed model values or disabled controls supersede it.
+Satellite share links carry the filter
+strength; legacy `f`/`a` values keep their Clouds only / Full meanings. Soft and
+Vivid remain layer-opacity presets (40%/70%); history remains transient and links
+open latest.
+Global infrared fetches one capped 4 MiB, 2048×1024 mosaic per frame and decodes
+and processes it before staging. Globe hosts crop that canvas into 256 px tiles
+to maximum level 3 on a geographic 2×1 root grid bounded to the manifest extent,
+avoiding request-dependent contrast seams.
+On globe hosts, regional infrared retains network tiles and processes each
+decoded tile once; shells process each whole frame once.
+Exact-time tile and image responses are immutable for 24 hours; manifests and
+errors remain uncached. Each globe renderer retains up to 6 processed global
+mosaics in a least-recently-used cache keyed by observation time and infrared
+mode (up to 48 MiB of canvas pixels). Each shell keeps decoded full-extent and
+detail images in one least-recently-used cache bounded at 128 MiB, keyed by
+time, mode and window: the shown frame and the warmed next frame, each
+full-extent and detail; nothing older survives them. Disable clears the caches.
+Cache hits skip
+fetch/decode and report `mosaic.cached: true` with zero decode time.
+During playback, a successful frame warms the next advertised observation,
+wrapping at the end. Global imagery warms a decoded frame and shells warm the
+next frame and its detail window; globe tiled
+products fetch at most eight level-0/1 tiles intersecting the view and product
+bounds. Prefetch is best effort, has a deadline, and cancels on frame
+replacement, pause, suspension or clear. Diagnostics expose the renderer
+(`host`), mosaic count and active prefetch state.
+Browser cache reuse and scrub-back latency still require browser verification.
+On globe hosts a replacement becomes visible before the previous layer retires
+on the next rendered frame; a shell keeps its previous texture until the new
+image is uploaded. Failed acquisition or staging retains the previous
+observation. Imagery ordering skips already ordered layers. Diagnostics expose
+the infrared mode and mosaic fetch/decode state.
+Throttled weather requests (429/503) get at most three retries per tile within
+a frame, independent of other tiles; successful requests reset only their own
+counter, and closing a frame clears its retry state.
+Mapped.earth's public bundles informed the rendering study; no code or assets
+were reused, and the study found no application licence granting reuse. Native
+hardware GPU behavior remains unverified; software-rendered checks do not
+establish native GPU performance or compatibility.
+
+The right-rail WEATHER panel owns active-product readouts, coverage badges,
+legends and the single observed-history timeline. The timeline appears with an
+active observed layer and at least two union times; wind alone does not show it.
+Dragging previews UTC and age locally and coalesces clock commits at 150 ms;
+release commits immediately. Latest selects the newest frame per product, and
+history labels the actual displayed frame as synced or nearest. Missing-frame
+messages use each product's eligibility gap (30 minutes, or three hours for the
+global mosaic). Wind shows forecast valid and issue times and does not follow
+history. Satellite clouds uses Clouds only / Full controls, a continuous cloud
+filter slider and Soft/Vivid opacity presets in its right-rail settings.
+
+Left weather rows retain only the toggle and one status line with a source
+tooltip. Configuration and the cyclone Storms list live in the cards, as do the
+cyclone advisory, position time, wind, pressure, geometry status and the
+official advisory link. The panel hides when empty, auto-expands once per page
+session and then preserves the user's collapsed state. Status lines reserve their space and refreshes are coalesced
+per frame. Generic keyed rail cards and the native rail timeline preserve DOM
+nodes and avoid identical writes; the weather panel owns descriptor mapping.
+Inspection emphasizes the chosen scalar and marks the exact sampled location;
+the passive marker follows that snapshot, respects globe occlusion and disappears
+on dismissal, field/model changes, disable or teardown. Clean view and
+recording mode hide weather presentation with the other controls. Scalar changes
+reuse native wind geometry when the model, issue/valid time, grid and U/V values
+are identical; new or revised wind still rebuilds. Source and renderer clocks
+remain independent of the shared Cesium clock.
+
+Weather also offers default-off lightning density and cyclone advisories.
+Lightning uses NOAA/NWS nowCOAST's public derived 15-minute density product from
+Vaisala NLDN/GLD360, with ten-minute metadata refresh and exact source times.
+Coverage is the Americas/Pacific (110°E across the dateline to 0°, 25°S–80°N),
+not worldwide detections; units are strikes/km²/min ×10³. It is neither raw GLM
+flashes nor a live strike counter. Weather imagery orders scalar context below
+satellite, radar and lightning consistently across enable and history order.
+
+Cyclones combine fixed NHC/CPHC status and summary GIS endpoints through a bounded
+same-origin provider. The status endpoint lacks browser CORS; each installation
+fetches keyless public sources at runtime, with no centralized ingestion service.
+The five-minute snapshot covers Atlantic and eastern/central North Pacific only.
+Current positions, advisory issue time and position time stay distinct. NHC may
+release an advisory before its nominal time (routinely up to about 30 minutes,
+rarely about an hour), so advisory issue and position times up to and including
+90 minutes ahead of the server clock are accepted; 90 minutes is this app's
+tolerance, not an NHC limit. Later, non-canonical, or more than 12-hour-old
+times still reject the status snapshot. Tracks,
+forecast lead-hour points and cones render only when all source parts match the
+status advisory; a newer status shows its position with geometry pending rather
+than relabeling older geometry. The cone represents forecast center uncertainty,
+not storm size or the full hazard area. Successful empty and unavailable states
+are distinct. One owned native Cesium data source preserves polygon holes and
+geographic seams and releases on disable; forecast animation is not implied.
+Cyclone markers, labels, tracks and cones are hidden beyond the horizon on every map source.
+Consult the linked official advisory for safety decisions.
 
 Voice and HUD snapshots reuse the existing feedState classifier. Analyst follow-ups retain their original data provenance; current-view results append provenance without replacing legacy fields. HUD context and deterministic telemetry include non-nominal feed state.
 

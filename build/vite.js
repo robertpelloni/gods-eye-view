@@ -1,9 +1,58 @@
+import { fileURLToPath } from 'node:url';
 import { applicationHtmlPlugin } from './application-html.js';
 import cesium from 'vite-plugin-cesium';
-import {
-  onDeviceRuntimePlugin,
-  phonemizerLoaderPath,
-} from './onDeviceRuntime.js';
+import { DEFAULT_ALLOWED_HOSTS, hostCheckPlugin } from './allowedHosts.js';
+import { embedFramingPlugin } from './embed-framing.js';
+import { panelBuildPlugin } from './panel.js';
+
+/** HTML documents a production build emits: the app and its mobile shell. */
+export const BROWSER_PAGES = Object.freeze({
+  main: fileURLToPath(new URL('../index.html', import.meta.url)),
+  mobile: fileURLToPath(new URL('../mobile/index.html', import.meta.url)),
+});
+
+/**
+ * Content-Security-Policy for every document the dev/preview server serves.
+ * No inline script is permitted, and the only foreign script origins are the
+ * three that the Bhote Koshi event's embedded media needs (YouTube, Facebook
+ * and X), which frame-src matches for their players and posts. 'unsafe-eval' is
+ * required: Knockout (bundled inside @cesium/widgets) resolves the global
+ * object with `(0, eval)("this")` at module load, and without it the Cesium
+ * widget never initializes (verified in headless Chrome). It also covers
+ * Cesium's WASM decoders. `blob:` is required in the built app: Cesium's
+ * bundled workers bootstrap through `importScripts(blob:...)`, which a worker
+ * checks against script-src (the dev server loads them by URL instead).
+ * Widen any other directive only for a real violation.
+ */
+export const BROWSER_CSP = [
+  "default-src 'self'",
+  // The Bhote Koshi event's embedded media: the YouTube player API, the
+  // Facebook video SDK and X's post widget (src/data/bhoteKoshiEmbeddedMedia.js);
+  // and the Maps JavaScript API that Street Level's Google Street View runs on.
+  "script-src 'self' 'unsafe-eval' blob: https://www.youtube.com https://connect.facebook.net https://platform.twitter.com https://maps.googleapis.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https:",
+  "connect-src 'self' blob: data: https: wss: ws:",
+  "worker-src 'self' blob:",
+  "child-src 'self' blob:",
+  // The same media's players and posts, which load in frames.
+  "frame-src 'self' blob: https://www.youtube-nocookie.com https://www.youtube.com https://www.facebook.com https://platform.twitter.com",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+/** Response headers shared by the dev and preview servers. */
+export const BROWSER_HEADERS = Object.freeze({
+  'X-Frame-Options': 'DENY',
+  'Content-Security-Policy': BROWSER_CSP,
+  // Responses are only ever used as the type the server declares.
+  'X-Content-Type-Options': 'nosniff',
+});
 
 /** Build browser assets with explicit inputs; never load environment or providers. */
 export function createBrowserViteConfig({
@@ -74,6 +123,9 @@ export function createBrowserViteConfig({
       // on-device tier; replies use the browser's on-device voices or text.
       'import.meta.env.GEV_NATURAL_VOICE': JSON.stringify(naturalVoice ?? ''),
     },
-    build: { chunkSizeWarningLimit: 1500 },
+    build: {
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: { input: { ...BROWSER_PAGES } },
+    },
   };
 }
