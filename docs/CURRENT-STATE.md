@@ -4685,7 +4685,7 @@ silently demoting every later lookup for the session.
   requires a developer key, so the pack needs `ONTARIO_511_API_KEY` and is skipped without one
   (#1228). All sources are RAW PRIOR
   poses, and the layer is stills-first.
-  sources. Fintraffic Finland road weather cameras (2026-09-13; cap 300, `CCTV_FINTRAFFIC_MAX_SOURCES`,
+  Fintraffic Finland road weather cameras (2026-09-13; cap 300, `CCTV_FINTRAFFIC_MAX_SOURCES`,
   kill switch `CCTV_FINTRAFFIC_ENABLED=0`) are the fourth pack: one keyless GeoJSON station list
   covering the whole country, where one _preset_ (a station's fixed view) is one camera — 806
   GATHERING stations carry 2,256 in-collection presets, prioritized to 300 against seven anchors
@@ -4698,6 +4698,11 @@ silently demoting every later lookup for the session.
   empty keeps the old catalog and is retried after another 15 minutes, not on the next
   request. Estonia's Tarktee DATEX feeds, which answer in 2 to 16.6 s, get 30 s
   (`TARKTEE_FETCH_TIMEOUT_MS`) where other packs get 15 s.
+  Ontario catalog requests refuse redirects and log only a fixed diagnostic for
+  transport/JSON failures, so reflected request URLs or keys cannot reach logs.
+  Tarktee owns both XML requests with one 30-second deadline and shared abort;
+  a failed header or body read cancels its sibling, including a response arriving
+  after cleanup.
   Both Tarktee XML catalogs refuse redirects and have a 4 MiB per-document
   limit, enforced against declared length and streamed bytes. A rejected fetch,
   unsuccessful response, or body-read failure releases both available response

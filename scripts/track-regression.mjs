@@ -2696,12 +2696,10 @@ async function main() {
     //       reappear wearing its stale/creation-north nose for up to 1 s).
     // Staged deterministically: park the camera nadir over the synthetic
     // cluster, let rotations settle, TAMPER a billboard's rotation, then
-    // trigger each path with the camera idle. The fleet runs every 80 ms,
-    // independently of rendered FPS. Observe the first completed settle frame
-    // within 500 ms of forcing moveEnd and the first reveal frame within
-    // 500 ms of that settle frame: each budget sits inside the 1 s idle
-    // rotation refresh that could otherwise repair an incorrect first reveal,
-    // and a ~300 ms headless SwiftShader frame fits inside each of them.
+    // trigger each path with the camera idle. The idle-drift catch-up
+    // (ROTATION_REFRESH_MS = 1 s) must not repair a stale first-visible nose
+    // before we inspect it: capture that first postRender, with a 250 ms
+    // deadline that admits the 80 ms fleet cadence without waiting a second.
     // ============================================================
     console.log('\nChange 4 — arrival rotation: moveEnd settle pass + horizon-reveal pass');
     const arrival = await evalPage(async () => {
@@ -2766,48 +2764,72 @@ async function main() {
       });
       await nextFrames(3);
       const angDiff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+      // Render frames are not fleet ticks: at 60/120 Hz four frames can
+      // precede the next 80 ms fleet pass. Observe elapsed time instead, and
+      // freeze the angle on the FIRST visible frame, even when it is wrong.
+      const observeFirstReveal = (bb, course, budgetMs = 250) => new Promise((resolve) => {
+        const startedAt = performance.now();
+        let frames = 0;
+        let settled = false;
+        const finish = (shown, elapsedMs) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          remove();
+          const expected = shown
+            ? screenProjectedRotation(v.scene, bb.position, course, null)
+            : null;
+          resolve({
+            shown,
+            flipFrame: shown ? frames : -1,
+            revealElapsedMs: elapsedMs,
+            revealWithinBudget: shown && elapsedMs <= budgetMs,
+            dReveal: shown && Number.isFinite(expected) ? angDiff(bb.rotation, expected) : null,
+          });
+        };
+        const remove = v.scene.postRender.addEventListener(() => {
+          frames += 1;
+          const elapsedMs = performance.now() - startedAt;
+          if (bb.show) {
+            finish(true, elapsedMs);
+          } else if (elapsedMs >= budgetMs) {
+            finish(false, elapsedMs);
+          } else {
+            v.scene.requestRender();
+          }
+        });
+        const timer = setTimeout(() => finish(false, performance.now() - startedAt), budgetMs);
+        v.scene.requestRender();
+      });
       const probe = async (id, course) => {
         const bb = findBB(id);
         if (!bb || !bb.show) return { error: `${id} missing/hidden` };
         const r0 = bb.rotation; // settled tamper origin; correctness uses a fresh projection below
+        // (a) settle pass: tamper, then raise moveEnd with the camera IDLE —
+        // the pose signature is unchanged, so only the moveEnd hook can fix
+        // this before the 1 s catch-up.
+        bb.rotation = r0 + 1.5;
+        v.camera.moveEnd.raiseEvent();
+        await nextFrames(2);
+        const afterMoveEnd = bb.rotation;
+        // A real-GPU fleet tick can land near the edge of the frame budget and
+        // advance the contact before the probe reads it. Compare with the
+        // production projection at the CURRENT position, not the now-stale r0.
+        const expectedMoveEnd = screenProjectedRotation(v.scene, bb.position, course, null);
+        // (b) reveal pass: tamper + hide — the next fleet tick must flip it
+        // visible AND correct the nose in that same tick (camera still idle,
+        // no moveEnd raised). Record frame count as diagnostics only: the
+        // first visible postRender must already have the corrected rotation.
+        bb.rotation = r0 + 1.5;
+        bb.show = false;
+        const reveal = await observeFirstReveal(bb, course);
         const hasModel = !!(window.__g3dFindModel && window.__g3dFindModel(id));
-        // A wall-clock timeout is inconclusive, not a wrong angle: the frame
-        // landed where the 1 s idle refresh could already have repaired it
-        // (seen once on headless SwiftShader: a 926 ms first frame). Such an
-        // observation gets one more attempt; a wrong first angle never does.
-        let observed;
-        for (let attempt = 1; attempt <= 2; attempt++) {
-          // Freshen both layers' rotation passes right before the probe, so the
-          // settle frame is measured against a pass that just ran rather than
-          // one left over from the previous probe — with the camera idle, a
-          // layer otherwise runs a pass only every ROTATION_REFRESH_MS.
-          v.camera.moveEnd.raiseEvent();
-          await nextFrames(1);
-          observed = await observeArrivalRotation({
-            scene: v.scene,
-            startMoveEnd() {
-              // Only moveEnd can repair the tampered angle at the idle pose.
-              bb.rotation = r0 + 1.5;
-              v.camera.moveEnd.raiseEvent();
-            },
-            startReveal() {
-              // Hide immediately after the confirmed settle frame. The next
-              // eligible fleet tick must reveal AND re-aim in that same tick.
-              bb.rotation = r0 + 1.5;
-              bb.show = false;
-            },
-            read() {
-              return {
-                shown: bb.show,
-                rotationError: angDiff(bb.rotation,
-                  screenProjectedRotation(v.scene, bb.position, course, null)),
-              };
-            },
-          });
-          observed.attempts = attempt;
-          if (!observed.error) break;
-        }
-        return { r0, ...observed, hasModel };
+        return {
+          r0,
+          dMoveEnd: angDiff(afterMoveEnd, expectedMoveEnd),
+          ...reveal,
+          hasModel,
+        };
       };
       const flightCourse = window.__SYNTH.flights.find((f) => f.icao === 'aaa002')?.track ?? 0;
       const militaryCourse = window.__SYNTH.military.find((m) => m.hex === 'bbb101')?.track ?? 0;
@@ -2816,13 +2838,20 @@ async function main() {
         military: await probe('bbb101', militaryCourse),
       };
     });
-    const fmtArr = (a) => (!a ? `no result (${arrival?.error || 'phase error'})` : a.error ? `${a.error}; elapsed=${Number(a.elapsedMs).toFixed(1)} ms attempts=${a.attempts}`
-      : `settle-err=${(a.dMoveEnd * 180 / Math.PI).toFixed(1)}° reveal-err=${(a.dReveal * 180 / Math.PI).toFixed(1)}° shown=${a.shown} flipFrame=${a.flipFrame} settle=${a.moveEndMs.toFixed(1)} ms reveal=${a.revealMs.toFixed(1)} ms total=${a.elapsedMs.toFixed(1)} ms attempts=${a.attempts} hasModel=${a.hasModel}`);
+    const fmtArr = (a) => (!a ? `no result (${arrival?.error || 'phase error'})` : a.error ? a.error
+      : `settle-err=${(a.dMoveEnd * 180 / Math.PI).toFixed(1)}° reveal-err=${a.dReveal === null ? 'unobserved' : (a.dReveal * 180 / Math.PI).toFixed(1) + '°'} shown=${a.shown} flipFrame=${a.flipFrame} revealMs=${a.revealElapsedMs.toFixed(1)} hasModel=${a.hasModel}`);
     const TAMPER_DEG = 1.5 * 180 / Math.PI; // ≈ 86° — an uncorrected nose stays this far off
-    record(`arrival: moveEnd + first reveal both re-aim before idle refresh, flights (tamper was ${TAMPER_DEG.toFixed(0)}°)`,
-      arrivalRotationPassed(arrival.flights), fmtArr(arrival.flights));
-    record(`arrival: moveEnd + first reveal both re-aim before idle refresh, military (tamper was ${TAMPER_DEG.toFixed(0)}°)`,
-      arrivalRotationPassed(arrival.military), fmtArr(arrival.military));
+    // 250 ms spans multiple 80 ms fleet opportunities while remaining well
+    // below the 1 s idle catch-up. Never retry until the angle becomes correct:
+    // dReveal is the immutable first-visible-frame observation above.
+    const arrOk = (a) => !!a && !a.error && a.shown
+      && a.revealWithinBudget && a.revealElapsedMs <= 250
+      && a.dReveal !== null
+      && a.dMoveEnd * 180 / Math.PI < 10 && a.dReveal * 180 / Math.PI < 10;
+    record(`arrival: moveEnd re-aims and first reveal is correct within 250 ms, flights (tamper was ${TAMPER_DEG.toFixed(0)}°)`,
+      arrOk(arrival.flights), fmtArr(arrival.flights));
+    record(`arrival: moveEnd re-aims and first reveal is correct within 250 ms, military (tamper was ${TAMPER_DEG.toFixed(0)}°)`,
+      arrOk(arrival.military), fmtArr(arrival.military));
 
     // ============================================================
     // DISPLAY FLOOR (2026-08-19): a grounded contact must never render below
