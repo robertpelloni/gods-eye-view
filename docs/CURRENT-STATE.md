@@ -9,23 +9,11 @@ broader suffix variants. Follow-ups retain boundary provenance, and cancelled
 lookups preserve the previous analyst cohort and boundary source. Navigation
 search keeps a successful geocode, with no search or view-based region recovery.
 
-External ALPR tags, surveillance-tool display fields, voice context text and
-compact analyst strings collapse controls and whitespace before a final
-180-character cap (scene labels retain their 120-character cap). Empty ALPR
-values remain null and Unicode text is preserved without splitting a surrogate
-pair. Only display fields are normalized: canonical analyst identifiers
-(`id`, `layerKey`, `icao24`, `mmsi`, `noradId`, `registration`, `callsign`)
-pass through unchanged, because bikeshare uses the raw station name as its ID
-and numbered voice references resolve by that key. These fields remain
-untrusted source data in structured tool output; text normalization does not
-establish trust or eliminate prompt injection.
-
-Terrain height requests accept at most 64 points, matching the browser service's
-existing batch size and one bounded upstream chunk. Larger requests return HTTP
-413 before disk-cache loading or upstream work; malformed coordinates remain 400.
-The browser continues to split larger workloads into sequential 64-point requests.
-
-Traffic holds continuous rendering only while enabled with animated dots or a pulsing jam heat-line. Empty and high-altitude views release the hold. A failed load leaves no hold only when no animated content is retained: if an earlier load succeeded, ingestion keeps its animated points and the hold stays. Population admission reacquires the hold and resets animation time. Clear, disable, and destroy also release it. Retained fading dots keep animation alive until they are removed. When the last point leaves mid height correction, the correction is settled at once, before the hold is released, so it cannot keep the layer reporting loading.
+Photon search unwraps antimeridian-crossing viewport bounds before computing its
+longitude bias, then wraps the midpoint back onto the globe. Invalid coordinates
+produce no bias. Nominatim omits a crossing viewbox because one ordinary box
+cannot describe that interval; the search still runs without a geographic bias.
+The annotation resolver uses the same Photon adapter and camera-subpoint proximity.
 
 Shared distance checks use `src/geoDistance.js` with `{ lat, lon }` points and
 the IUGG mean spherical Earth radius, 6371.0088 km. `greatCircleKm` is
