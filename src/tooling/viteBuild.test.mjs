@@ -18,13 +18,8 @@ test('explicit build inputs preserve browser-only defines, plugin order and loop
     googleApiKey: 'browser-fixture',
     cesiumToken: 'ion-fixture',
   });
-  // API response headers, then the Host check, run before every other
-  // plugin's middleware.
-  assert.equal(config.plugins[0].name, 'api-response-headers');
-  assert.equal(config.plugins[0].enforce, 'pre');
-  assert.equal(config.plugins[1].name, 'host-check');
-  assert.equal(config.plugins[1].enforce, 'pre');
-  assert.equal(config.plugins[4], plugin);
+  assert.equal(config.plugins[2].name, 'gev-on-device-runtime');
+  assert.equal(config.plugins[3], plugin);
   assert.equal(config.server.host, 'localhost');
   assert.equal(config.server.port, 4173);
   assert.deepEqual(config.server.allowedHosts, ['localhost', '127.0.0.1']);
@@ -47,14 +42,13 @@ test('explicit build inputs preserve browser-only defines, plugin order and loop
   assert.deepEqual(config.define, {
     'import.meta.env.GOOGLE_MAPS_API_KEY': '"browser-fixture"',
     'import.meta.env.CESIUM_ION_TOKEN': '"ion-fixture"',
-    'import.meta.env.MAPILLARY_CLIENT_TOKEN': '""',
+    'import.meta.env.GEV_NATURAL_VOICE': '""',
   });
   assert.equal(
-    createBrowserViteConfig({ photonUrl: '' }).define[
-      'import.meta.env.PHOTON_URL'
+    createBrowserViteConfig({ naturalVoice: 'off' }).define[
+      'import.meta.env.GEV_NATURAL_VOICE'
     ],
-    '""',
-    'an empty PHOTON_URL reaches the browser as "disabled"',
+    '"off"',
   );
   assert.equal(
     createBrowserViteConfig({ host: '0.0.0.0', port: '4800' }).server
@@ -76,10 +70,7 @@ test('build helper does not discover environment values or construct local provi
       config.define['import.meta.env.GOOGLE_MAPS_API_KEY'],
       undefined,
     );
-    assert.deepEqual(
-      config.plugins.slice(4).map((plugin) => plugin.name),
-      ['embed-framing', 'panel-build'],
-    );
+    assert.equal(config.plugins.length, 3);
   } finally {
     if (before === undefined) delete process.env.GOOGLE_MAPS_API_KEY;
     else process.env.GOOGLE_MAPS_API_KEY = before;
@@ -102,7 +93,7 @@ test('root config retains existing named exports and standalone provider order',
     standaloneProviders.indexOf('openai-realtime-proxy') + 1,
   );
   assert.deepEqual(
-    standaloneProviders.filter((name) => name !== 'gemini-live-proxy'),
+    config.plugins.slice(3, -1).map((plugin) => plugin.name),
     providers.localProviderPlugins().map((plugin) => plugin.name),
   );
   assert.equal(config.plugins.at(-6).name, 'gev-key-setup');

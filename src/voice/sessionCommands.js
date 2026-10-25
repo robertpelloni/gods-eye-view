@@ -2,8 +2,7 @@ import { createVoiceControl, voiceStatusLabel } from './control.js';
 import { createVoiceSession } from './session.js';
 import { VoiceCardControls } from './voiceCard.js';
 import { PointerReticle } from './pointerReticle.js';
-import { VOICE_PROVIDERS } from './providerCapabilities.js';
-import { msg, registerUnsavedWork, t } from '../i18n/index.js';
+import { VoiceEngineControls } from './voiceEngineControls.js';
 
 function createDefaultReticle(pointer) {
   const element = pointer?.element;
@@ -36,9 +35,23 @@ export function createVoiceCommands({
   pointer = null,
   referents = null,
   createReticle = createDefaultReticle,
+  engineChoice = null,
+  createEngineControls = (options) => new VoiceEngineControls(options),
 }) {
   if (resetExisting) window.__gevVoiceCommands?.stop?.({ removeUi: true });
   const ui = createControl({ reset: true });
+  // Cloud / On-device choice; the on-device provider mounts its model
+  // settings in this tray.
+  const engineControls =
+    engineChoice && ui.root
+      ? createEngineControls({
+          root: ui.root,
+          engine: engineChoice.engine,
+          onSelect: engineChoice.select,
+          open: Boolean(engineChoice.openTray),
+        })
+      : null;
+  ui.engineControls = engineControls;
   const session = createVoiceSession({
     runner,
     signal,
@@ -122,6 +135,7 @@ export function createVoiceCommands({
     ? session.subscribe((event) => card.handle(event))
     : null;
   controls.voiceCard = card;
+  controls.engineControls = engineControls;
   // Point-and-ask: the reticle follows turn events; pointer and referents are
   // session-scoped, so a session that ends forgets both.
   const reticle = pointer ? createReticle(pointer) : null;
@@ -155,10 +169,23 @@ export function createVoiceCommands({
     else void session.start({ pushToTalk: false });
   };
   ui.button.addEventListener('click', buttonHandler);
-  let cleaned = false;
-  const cleanup = () => {
-    if (cleaned) return;
-    cleaned = true;
+  session.signal.addEventListener(
+    'abort',
+    () => {
+      ui.button.removeEventListener('click', buttonHandler);
+      annotationUnsubscribe?.();
+      updateStatus();
+      updateCard?.();
+      updatePointer();
+      reticle?.destroy();
+      card?.destroy();
+      engineControls?.destroy();
+      runner.dispose?.();
+      ui.root.remove();
+    },
+    { once: true },
+  );
+  if (session.disposed) {
     ui.button.removeEventListener('click', buttonHandler);
     ui.providerSelect?.removeEventListener('change', providerHandler);
     unregisterUnsavedWork();
@@ -169,7 +196,8 @@ export function createVoiceCommands({
     forwardEvents?.();
     reticle?.destroy();
     card?.destroy();
-    if (disposeRunner) runner.dispose?.();
+    engineControls?.destroy();
+    runner.dispose?.();
     ui.root.remove();
   };
   session.signal.addEventListener('abort', cleanup, { once: true });

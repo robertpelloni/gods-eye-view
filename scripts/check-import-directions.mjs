@@ -24,7 +24,11 @@ const renderer = (file) =>
   /^src\/layers\/[^/]+\/(?:index|rendering|snapshotRenderer|overlay|presentation|cards|controls)\.js$/.test(
     file,
   );
-// One compatibility composition entry intentionally selects standalone defaults.
+// The runtime phonemizer loader imports a downloaded file only after its
+// SHA-256 matches the pinned value; no other module may import a computed URL.
+const verifiedRuntimeImport = (file) =>
+  file === 'src/voice/local/workers/phonemizerRuntime.js';
+// Two compatibility composition entries intentionally select standalone defaults.
 const compatibilityEdge = (from, to) =>
   from === 'server/providers/local.js' &&
   to === 'server/standalone/key-setup.js';
@@ -87,7 +91,9 @@ export function checkImportDirections(root) {
     }
     let analysis;
     try {
-      analysis = analyzeModule(readFileSync(resolved, 'utf8'));
+      analysis = analyzeModule(readFileSync(resolved, 'utf8'), {
+        allowComputedImport: verifiedRuntimeImport(file),
+      });
     } catch (error) {
       report(file, error.message);
       return null;
