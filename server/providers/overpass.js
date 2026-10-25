@@ -1,6 +1,11 @@
-import { makeRateLimiter, clientKey } from './common/rate-limit.js';
+import {
+  makeRateLimiter,
+  clientKey,
+  clientNetworkKey,
+  isLoopbackPeer,
+} from './common/rate-limit.js';
 import { readRequestBodyCapped } from './common/request.js';
-import { admitSameSite } from './common/same-site.js';
+import { admitSameSiteKeyless } from './common/same-site.js';
 import {
   OVERPASS_MAX_BODY_BYTES,
   OVERPASS_MAX_CONCURRENT,
@@ -30,10 +35,16 @@ const _overpassInFlight = new Map();
 let _overpassConcurrent = 0;
 
 // Bound body-reading and validation work, including malformed requests and
-// cache hits. Keep the tighter upstream budget below independent of this gate.
-const _overpassRequestLimiter = makeRateLimiter({
-  windowMs: 60_000,
-  max: 300,
+// cache hits, before a byte is read. Non-loopback peers share one global
+// window so address rotation cannot mint admission without bound (IPv6 peers
+// are keyed by /64 for the same reason); loopback — the owner's own browser
+// and the repo QA harnesses — has its own per-peer window outside that global,
+// so a few busy LAN peers cannot lock the owner out of the map. Keep the
+// tighter upstream budget below independent of this gate.
+const OVERPASS_ADMISSION_WINDOW = { windowMs: 60_000, max: 300 };
+const _overpassLoopbackAdmission = makeRateLimiter(OVERPASS_ADMISSION_WINDOW);
+const _overpassPeerAdmission = makeRateLimiter({
+  ...OVERPASS_ADMISSION_WINDOW,
   globalMax: 900,
 });
 
@@ -42,6 +53,20 @@ const _overpassRateLimiter = makeRateLimiter({
   max: 90,
   globalMax: 300,
 });
+
+/**
+ * Spend one admission slot for this request's peer; false when it is over its
+ * window (or, for a non-loopback peer, when the shared global window is full).
+ * @param {import('http').IncomingMessage} req
+ * @param {string} peer - `clientNetworkKey(req)`.
+ * @returns {boolean}
+ */
+function admitOverpassRequest(req, peer) {
+  const admit = isLoopbackPeer(clientKey(req))
+    ? _overpassLoopbackAdmission
+    : _overpassPeerAdmission;
+  return admit(peer);
+}
 
 /**
  * Write a completed Overpass payload to the HTTP response.
@@ -104,8 +129,13 @@ function overpassProxy({ routing = {} } = {}) {
           return;
         }
 
-        if (admitSameSite(req, res)) return;
-        if (!_overpassRequestLimiter(clientKey(req))) {
+        // Keyless gate: refuses cross-site browser requests but, unlike the
+        // cost-bearing routes, admits the forwarding headers a reverse proxy
+        // adds — the layers that depend on Overpass must keep working for an
+        // instance deployed the way the README documents.
+        if (admitSameSiteKeyless(req, res)) return;
+        const peer = clientNetworkKey(req);
+        if (!admitOverpassRequest(req, peer)) {
           res.writeHead(429, {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store',
@@ -164,31 +194,7 @@ function overpassProxy({ routing = {} } = {}) {
           // requests; boundary-class queries keep their month-long TTL.
           readDisk: () =>
             readOverpassDisk(cacheKey, overpassDiskTtlMs(cacheKey)),
-          allowUpstream: () => _overpassRateLimiter(clientKey(req)),
-          loadUpstream: async () => {
-            if (_overpassConcurrent >= OVERPASS_MAX_CONCURRENT)
-              return {
-                status: 503,
-                contentType: 'application/json',
-                retryAfterMs: 2000,
-                body: JSON.stringify({
-                  error: 'Overpass proxy busy — try again shortly',
-                }),
-              };
-            _overpassConcurrent++;
-            try {
-              const payload = await fetchOverpassPayload(safeBody);
-              if (overpassPayloadIsData(payload)) {
-                const entry = { ...payload, cachedAt: Date.now() };
-                _overpassCache.set(cacheKey, entry);
-                trimOverpassCache();
-                writeOverpassDisk(cacheKey, entry);
-              }
-              return payload;
-            } finally {
-              _overpassConcurrent--;
-            }
-          },
+          allowUpstream: () => _overpassRateLimiter(peer),
         });
         if (preflight.source === 'RATE_LIMITED') {
           res.writeHead(429, {
