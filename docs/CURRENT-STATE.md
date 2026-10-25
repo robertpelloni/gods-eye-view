@@ -1,5 +1,21 @@
 # God's Eye View Current State
 
+Analyst region queries resolve unique Natural Earth names offline without
+geocoding, so Gold Coast and Ivory Coast name the West African natural regions.
+Duplicate names require a geocoded containment anchor; when several entries for
+the same name contain that anchor, the lookup stays unresolved rather than
+selecting the largest entry. Natural outlines try exact names before aliases and
+broader suffix variants. Follow-ups retain boundary provenance, and cancelled
+lookups preserve the previous analyst cohort and boundary source. Navigation
+search keeps a successful geocode, with no search or view-based region recovery.
+
+CCTV live-media requests are same-site gated before catalog or media work, including
+HLS renewal, segment reads and DELETE cleanup. HLS leases belong to their socket
+peer (IPv4-mapped IPv6 is normalized), with eight leases per peer across the two
+global sessions. Peers behind the same NAT share that budget; this is resource
+admission, not authentication. Native same-origin video and range requests remain
+supported.
+
 Shared distance checks use `src/geoDistance.js` with `{ lat, lon }` points and
 the IUGG mean spherical Earth radius, 6371.0088 km. `greatCircleKm` is
 canonical; `greatCircleMeters` is its exact metre conversion. Missing,
