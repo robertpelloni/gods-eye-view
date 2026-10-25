@@ -994,14 +994,18 @@ test('the voice TOOL SCHEMA matches the pinned contract — the mission mapping 
   ]);
   const block = JSON.stringify(legacyTools);
   // Re-derived for the voice layer manifest (generated layer enums, alias and
-  // field hints), point-and-ask's pointer/referent arguments, the prompt
-  // consolidation (shorter analyst, annotate_map and ISS wording), then the
-  // analyst area scopes and the osm-places layer; the missions still ride
-  // existing tools.
-  assert.equal(block.length, 29226, 'serialized tool schema length drifted');
+  // field hints), point-and-ask's pointer/referent arguments and the prompt
+  // consolidation (shorter analyst, annotate_map and ISS wording), plus the
+  // referent-only track_entity alternative (kept out of the model-facing
+  // schema, which may not carry top-level anyOf), and Contacts requested-radius
+  // list descriptions; the missions still ride existing tools.
+  // Street Level and GNSS extend the manifest; broadcast caveats describe tracked and analyst aircraft.
+  // Air quality (ECCC AQHI) extends the manifest.
+  // Local ADS-B adds altitude quality, observation time and source field hints.
+  assert.equal(block.length, 30705, 'serialized tool schema length drifted');
   assert.equal(
     crypto.createHash('sha256').update(block).digest('hex'),
-    '8660b35cbe2605e75e4b176f93ec76965ba3d8f2d5da23e65a83b816939312d5',
+    'f3835c8f5b1732cbd5b45e3eb46baa9a979830be2d23dd1c9888a3e98a35f082',
     'the first-run missions must ride EXISTING tools: no schema edit, no cache bust',
   );
   const instructions = fs.readFileSync(

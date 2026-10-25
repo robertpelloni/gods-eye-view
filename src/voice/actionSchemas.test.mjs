@@ -33,11 +33,14 @@ test('the complete Realtime tool payload pins the manifest-generated layer relea
   assert.equal(
     digest,
     // Re-derived for the voice layer manifest (generated layer enums and
-    // aliases), point-and-ask (pointer sentinels, referent args), the
-    // consolidated tool wording (each policy stated once), then voice
-    // geometry (resolve_area, find_imagery, osm_query, analyst area scopes
-    // and the osm-places layer).
-    '8051e024669a055601d7b8020aa185bb67101bfd1b5a7fc73cc4ab09046ec20d',
+    // aliases), point-and-ask (pointer sentinels, referent args) and the
+    // consolidated tool wording (each policy stated once); model-facing tools
+    // omit top-level anyOf (OpenAI rejects it). Contacts list routing preserves
+    // requested radius and center authority in descriptions only.
+    // Street Level and GNSS extend the manifest; tracked and analyst aircraft describe broadcasts.
+    // Air quality (ECCC AQHI) extends the manifest.
+    // Local ADS-B adds altitude quality, observation time and source field hints.
+    '13595e14cd3837b48ff5a3aa52b287cf98dcf8a47e2aac7ccf9d57bd4d48e51c',
   );
 });
 
