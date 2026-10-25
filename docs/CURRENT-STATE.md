@@ -9,7 +9,16 @@ broader suffix variants. Follow-ups retain boundary provenance, and cancelled
 lookups preserve the previous analyst cohort and boundary source. Navigation
 search keeps a successful geocode, with no search or view-based region recovery.
 
-Manager-owned periodic network updates pause while the document is hidden. Returning to a visible tab runs one overdue update per enabled layer without overlapping an active refresh and restarts that layer's polling schedule from the return, so the next poll follows one interval later whether or not the catch-up update succeeds; explicit refresh requests remain available. Transit also defers camera-driven feed admission while hidden and rechecks coverage on return. Visibility listeners are released with their polling intervals.
+External ALPR tags, surveillance-tool display fields, voice context text and
+compact analyst strings collapse controls and whitespace before a final
+180-character cap (scene labels retain their 120-character cap). Empty ALPR
+values remain null and Unicode text is preserved without splitting a surrogate
+pair. Only display fields are normalized: canonical analyst identifiers
+(`id`, `layerKey`, `icao24`, `mmsi`, `noradId`, `registration`, `callsign`)
+pass through unchanged, because bikeshare uses the raw station name as its ID
+and numbered voice references resolve by that key. These fields remain
+untrusted source data in structured tool output; text normalization does not
+establish trust or eliminate prompt injection.
 
 Terrain height requests accept at most 64 points, matching the browser service's
 existing batch size and one bounded upstream chunk. Larger requests return HTTP
