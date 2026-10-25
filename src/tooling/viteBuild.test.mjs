@@ -93,12 +93,14 @@ test('root config retains existing named exports and standalone provider order',
     standaloneProviders.indexOf('openai-realtime-proxy') + 1,
   );
   assert.deepEqual(
-    config.plugins.slice(3, -1).map((plugin) => plugin.name),
+    config.plugins.slice(3, -6).map((plugin) => plugin.name),
     providers.localProviderPlugins().map((plugin) => plugin.name),
   );
-  assert.equal(config.plugins.at(-6).name, 'gev-key-setup');
+  assert.equal(config.plugins.at(-7).name, 'gev-key-setup');
   // The local MCP route follows every provider and precedes the API fallback.
-  assert.equal(config.plugins.at(-5).name, 'local-mcp');
+  assert.equal(config.plugins.at(-6).name, 'local-mcp');
+  // The phone camera's desktop routes also answer before the API fallback.
+  assert.equal(config.plugins.at(-5).name, 'gev-vcam');
   assert.equal(config.plugins.at(-4).name, 'api-not-found');
   // Config-only, so it sits after the provider slice rather than in it.
   assert.equal(config.plugins.at(-3).name, 'gev-unwatched-runtime-dirs');
