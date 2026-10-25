@@ -13,15 +13,26 @@
  * production build emit a JavaScript copy of every pack that the browser
  * never loads.
  *
+ * A pack split into many files passes no `importJson` (a literal import per
+ * file would also bundle every file as a script chunk); under Node its file
+ * is then read directly.
+ *
  * @module data/bundledJson
  */
 
 /**
  * @param {URL} url - Resolved against the calling module's `import.meta.url`.
- * @param {{signal?: AbortSignal}} [options]
+ * @param {(() => Promise<{default: any}>)|null} [importJson] - The caller's
+ *   literal `import('./….json', { with: { type: 'json' } })`, used only under
+ *   Node; without it Node reads the file.
  * @returns {Promise<any>} The parsed JSON.
  */
-export async function loadBundledJson(url, { signal } = {}) {
+export async function loadBundledJson(url, importJson, { signal } = {}) {
+  if (url.protocol === 'file:') {
+    if (importJson) return (await importJson()).default;
+    const fs = globalThis.process.getBuiltinModule('node:fs');
+    return JSON.parse(fs.readFileSync(url, 'utf8'));
+  }
   signal?.throwIfAborted();
   if (url.protocol === 'file:') {
     // Node's built-in, reached without an import, so the browser build never

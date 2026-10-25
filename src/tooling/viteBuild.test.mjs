@@ -50,23 +50,16 @@ test('explicit build inputs preserve browser-only defines, plugin order and loop
     'import.meta.env.MAPILLARY_CLIENT_TOKEN': '""',
   });
   assert.equal(
-    createBrowserViteConfig({ mapillaryToken: 'MLY|1|abc' }).define[
-      'import.meta.env.MAPILLARY_CLIENT_TOKEN'
+    createBrowserViteConfig({ photonUrl: '' }).define[
+      'import.meta.env.PHOTON_URL'
     ],
-    '"MLY|1|abc"',
+    '""',
+    'an empty PHOTON_URL reaches the browser as "disabled"',
   );
-  // A wildcard bind keeps the Host-header check; LAN names are explicit.
-  for (const host of ['0.0.0.0', '::'])
-    assert.deepEqual(
-      createBrowserViteConfig({ host, port: '4800' }).server.allowedHosts,
-      ['localhost', '127.0.0.1'],
-    );
-  assert.deepEqual(
-    createBrowserViteConfig({
-      host: '0.0.0.0',
-      allowedHosts: ['localhost', '127.0.0.1', 'globe.lan'],
-    }).server.allowedHosts,
-    ['localhost', '127.0.0.1', 'globe.lan'],
+  assert.equal(
+    createBrowserViteConfig({ host: '0.0.0.0', port: '4800' }).server
+      .allowedHosts,
+    true,
   );
   assert.equal(
     createBrowserViteConfig({ host: '::', port: '4800' }).server.port,

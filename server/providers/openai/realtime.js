@@ -13,119 +13,8 @@ import {
   OPENAI_REALTIME_TRANSCRIBE_MODEL_DEFAULT,
 } from './constants.js';
 import { realtimeInstructions } from './instructions.js';
-import { GEV_REALTIME_TOOLS } from './tools.js';
-import {
-  preferCodexOAuth,
-  readCodexOAuthAccessToken,
-  createCodexOAuthLogin,
-} from './codex-auth.js';
-
-const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
-
-function isLoopbackRequest(req) {
-  return LOOPBACK_ADDRESSES.has(String(req.socket?.remoteAddress || ''));
-}
-
-function isSameOriginRequest(req) {
-  const origin = String(req.headers?.origin || '').trim();
-  if (!origin) return true;
-  const host = String(req.headers?.host || '').trim();
-  if (!host) return false;
-  const protocol = req.socket?.encrypted ? 'https:' : 'http:';
-  try {
-    return new URL(origin).origin === new URL(`${protocol}//${host}`).origin;
-  } catch {
-    return false;
-  }
-}
-
-function requestQuery(req) {
-  try {
-    return new URL(req.url || '', 'http://localhost').searchParams;
-  } catch {
-    return new URLSearchParams();
-  }
-}
-
-function resolveRealtimeAuthMode(query) {
-  const requested = String(query.get('auth') || 'api-key').toLowerCase();
-  if (requested === 'api-key' || requested === 'oauth') return requested;
-  return null;
-}
-
-function createRealtimeOAuthStatusHandler({
-  oauthLogin = createCodexOAuthLogin(),
-} = {}) {
-  return (req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Type', 'application/json');
-    if (req.method !== 'GET') {
-      res.statusCode = 405;
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    if (!isLoopbackRequest(req)) {
-      res.statusCode = 403;
-      res.end(
-        JSON.stringify({
-          available: false,
-          error: 'ChatGPT OAuth is available only from this machine',
-        }),
-      );
-      return;
-    }
-    res.statusCode = 200;
-    res.end(JSON.stringify(oauthLogin.status()));
-  };
-}
-
-function createRealtimeOAuthLoginHandler({
-  oauthLogin = createCodexOAuthLogin(),
-} = {}) {
-  return async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Type', 'application/json');
-    if (req.method !== 'POST') {
-      res.statusCode = 405;
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    if (!isLoopbackRequest(req)) {
-      res.statusCode = 403;
-      res.end(
-        JSON.stringify({
-          available: false,
-          error: 'ChatGPT OAuth sign-in is available only from this machine',
-        }),
-      );
-      return;
-    }
-    if (!isSameOriginRequest(req)) {
-      res.statusCode = 403;
-      res.end(
-        JSON.stringify({
-          available: false,
-          error: 'Cross-origin ChatGPT OAuth sign-in is not allowed',
-        }),
-      );
-      return;
-    }
-
-    try {
-      const result = await oauthLogin.start();
-      res.statusCode = result.available ? 200 : result.loginFailed ? 503 : 202;
-      res.end(JSON.stringify(result));
-    } catch {
-      res.statusCode = 503;
-      res.end(
-        JSON.stringify({
-          available: false,
-          error: 'Could not start ChatGPT sign-in',
-        }),
-      );
-    }
-  };
-}
+import { realtimeTools } from './tools.js';
+import { resolveOverpassUpstreams } from '../overpass/constants.js';
 
 function createRealtimeTokenHandler({
   annotationGuidance,
@@ -135,7 +24,8 @@ function createRealtimeTokenHandler({
   resolveOAuthAccessToken = () => readCodexOAuthAccessToken(),
   environment = process.env,
   models = {},
-  tools = GEV_REALTIME_TOOLS,
+  // osm_query is offered only when an operator configured Overpass.
+  overpassConfigured = () => resolveOverpassUpstreams().length > 0,
 } = {}) {
   return async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -273,6 +163,7 @@ function createRealtimeTokenHandler({
       transcribeModel.toLowerCase() === 'off'
         ? {}
         : { transcription: { model: transcribeModel } };
+    const overpass = overpassConfigured();
     const sessionConfig = {
       session: {
         type: 'realtime',
@@ -298,8 +189,8 @@ function createRealtimeTokenHandler({
           },
           output: { voice },
         },
-        instructions: realtimeInstructions(annotationGuidance),
-        tools,
+        instructions: realtimeInstructions(annotationGuidance, { overpass }),
+        tools: realtimeTools({ overpass }),
         tool_choice: 'auto',
       },
     };

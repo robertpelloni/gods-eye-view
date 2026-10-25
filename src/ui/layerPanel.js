@@ -87,8 +87,8 @@ const PANEL_GROUPS = [
     ],
   },
   {
-    label: msg('Utilities'),
-    ids: ['directions', 'radio'],
+    label: 'Utilities',
+    ids: ['directions', 'radio', 'osm-places'],
   },
 ];
 const PANEL_ORDER = PANEL_GROUPS.flatMap(({ label, ids }) =>

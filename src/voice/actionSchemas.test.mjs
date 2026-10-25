@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { GEV_ACTION_SCHEMAS, createActionTools } from './actionSchemas.js';
 import { GEV_REALTIME_TOOLS } from '../../server/providers/openai/tools.js';
-import {
-  validateArgs,
-  validateCall,
-} from '../../scripts/voice-bench/grade.mjs';
+import { createAreaStore } from '../data/areaStore.js';
+import { createAreaResolver } from '../data/areaResolver.js';
+import { findAdminCandidates } from '../data/adminBoundaries.js';
+import { validateArgs } from '../../scripts/voice-bench/grade.mjs';
 
 const stable = (value) =>
   Array.isArray(value)
@@ -33,16 +33,11 @@ test('the complete Realtime tool payload pins the manifest-generated layer relea
   assert.equal(
     digest,
     // Re-derived for the voice layer manifest (generated layer enums and
-    // aliases), point-and-ask (pointer sentinels, referent args) and the
-    // consolidated tool wording (each policy stated once); model-facing tools
-    // omit top-level anyOf (OpenAI rejects it). Contacts list routing preserves
-    // requested radius and center authority in descriptions only.
-    // Street Level and GNSS extend the manifest; tracked and analyst aircraft describe broadcasts.
-    // Air quality (ECCC AQHI) extends the manifest.
-    // Globe rotation adds one motion; visual keyhole fit and explicit
-    // reset guidance/defaults update only move_camera and mode descriptions.
-    // Restore base descriptions; append only globe-rotation defaults and fit guidance.
-    '967b5a043b812e2f8c1e190fc571cf12b960c9d4486df736902221aab4d99cf6',
+    // aliases), point-and-ask (pointer sentinels, referent args), the
+    // consolidated tool wording (each policy stated once), then voice
+    // geometry (resolve_area, find_imagery, osm_query, analyst area scopes
+    // and the osm-places layer).
+    '8051e024669a055601d7b8020aa185bb67101bfd1b5a7fc73cc4ab09046ec20d',
   );
 });
 
@@ -70,6 +65,37 @@ test('descriptions customize wording without changing immutable shared arguments
     JSON.stringify(GEV_ACTION_SCHEMAS).includes('"description"'),
     false,
   );
+});
+
+test('every emitted area candidate round-trips through the production schema', async () => {
+  const candidateSchema = GEV_ACTION_SCHEMAS.find(
+    (tool) => tool.name === 'resolve_area',
+  ).parameters.properties.candidateId;
+  const resolver = createAreaResolver({
+    store: createAreaStore(),
+    findAdminCandidates,
+  });
+  const ambiguous = await resolver.resolve({ query: 'Georgia' });
+  assert.equal(ambiguous.needsClarification, true);
+  for (const choice of ambiguous.candidates) {
+    assert.ok(choice.candidateId.length >= candidateSchema.minLength);
+    assert.ok(choice.candidateId.length <= candidateSchema.maxLength);
+    assert.match(choice.candidateId, new RegExp(candidateSchema.pattern, 'u'));
+    assert.equal(
+      (await resolver.resolve({ candidateId: choice.candidateId })).ok,
+      true,
+    );
+  }
+  assert.equal(ambiguous.candidates[0].candidateId.length, 41);
+  const grammar = new RegExp(candidateSchema.pattern, 'u');
+  for (const malformed of [
+    'ne:state:bad slug',
+    'ne:state:../../etc',
+    'ne:state:!!!',
+    'ne:state:a_b',
+  ])
+    assert.doesNotMatch(malformed, grammar);
+  assert.ok(`ne:state:${'x'.repeat(80)}`.length > candidateSchema.maxLength);
 });
 
 test('metadata cannot add tools, fields, types or enum values', () => {
@@ -100,7 +126,14 @@ test('metadata cannot add tools, fields, types or enum values', () => {
 
 test('all legacy action arguments are byte-identical after removing the deliberate additions', () => {
   const legacy = structuredClone(GEV_ACTION_SCHEMAS).filter(
-    (tool) => !['next_satellite_pass', 'set_cyber_sonar'].includes(tool.name),
+    (tool) =>
+      ![
+        'next_satellite_pass',
+        'set_cyber_sonar',
+        'resolve_area',
+        'find_imagery',
+        'osm_query',
+      ].includes(tool.name),
   );
   // Layer enums are generated from the voice layer manifest and pinned by
   // layerManifest.test.mjs; the two shipped right-rail panels are additive.
@@ -143,6 +176,13 @@ test('all legacy action arguments are byte-identical after removing the delibera
   analystScopeKind.enum = analystScopeKind.enum.filter(
     (key) => key !== 'pointer',
   );
+  // Area handles add three scope kinds and their two identifiers.
+  const scope = property('analyst_query').scope;
+  scope.properties.kind.enum = scope.properties.kind.enum.filter(
+    (kind) => !['area', 'drawn', 'annotation'].includes(kind),
+  );
+  delete scope.properties.areaId;
+  delete scope.properties.id;
   // The analyst centre now requires a real coordinate.
   const center = property('analyst_query').scope.properties.center;
   delete center.required;
