@@ -233,21 +233,7 @@ const BASEMAP_CONTEXT_WAIT_MS = 1500;
 const viewTargetCache = new WeakMap();
 
 /** Create application actions over the supplied scene and services. */
-export function createGevActionRunner({
-  viewer,
-  styleManager,
-  dataManager,
-  sceneDirector = null,
-  annotations = null,
-  placeSearch = unavailablePlaceSearch,
-  floorServices = defaultFloorServices,
-  annotationResolver = defaultAnnotationResolver,
-  searchNavigation = searchAndFlyTo,
-  speechBuilders = null,
-  deixis = null,
-  osmSearch = null,
-  areaOptions = null,
-}) {
+export function createGevActionRunner({ viewer, styleManager, dataManager, sceneDirector = null, annotations = null, spatialWorkspace = null, placeSearch = unavailablePlaceSearch, floorServices = defaultFloorServices, annotationResolver = defaultAnnotationResolver, searchNavigation = searchAndFlyTo }) {
   // Voice enable times and analyst follow-up memory belong to this runner.
   // Speech builders turn results into say/display envelopes; callers extend
   // them (e.g. an analyst_query builder) without replacing the defaults.
@@ -290,17 +276,16 @@ export function createGevActionRunner({
     runOptions = {},
   ) {
     const args = rawArgs && typeof rawArgs === 'object' ? rawArgs : {};
-    const current = () =>
-      !runOptions.signal?.aborted &&
-      (typeof runOptions.isCurrent !== 'function' || runOptions.isCurrent());
-    // Step reports for voice narration and the voice card; never fatal.
-    const reportProgress = (step, label = '') => {
-      try {
-        runOptions.progress?.({ step, label: String(label || '') });
-      } catch {
-        /* Progress is advisory. */
-      }
-    };
+    const current = () => !runOptions.signal?.aborted
+      && (typeof runOptions.isCurrent !== 'function' || runOptions.isCurrent());
+    if (name === 'spatial_selection') {
+      if (!current()) return { ok: false, error: 'Request superseded.' };
+      if (!spatialWorkspace) return { ok: false, error: 'Spatial workspace is unavailable.' };
+      if (args.action === 'color_by_use') return spatialWorkspace.query({ kind: 'use' });
+      if (args.action === 'recorded_height') return spatialWorkspace.query({ kind: 'height' });
+      const context = spatialWorkspace.getContext();
+      return { ok: context.active && context.count > 0, ...context, note: 'Only the explicitly selected OSM buildings. A closed workspace is not active context. Unknown heights and use remain unknown. Display estimates are not measurements.' };
+    }
 
     // Navigation tools interrupt any continuous camera motion (spec §1.1) —
     // checked FIRST because each handler returns.
