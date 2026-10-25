@@ -23,10 +23,6 @@ import { geminiLiveProxy } from './gemini.js';
 import { googlePlacesContextProxy } from './places.js';
 import { mapillaryProxy } from './mapillary.js';
 import { keySetupEndpoint } from '../standalone/key-setup.js';
-import { weatherProxy } from './weather.js';
-import { firePerimetersProxy } from './firePerimeters.js';
-import { gnssIntegrityProxy } from './gnssIntegrity.js';
-import { cycloneProxy } from './cyclones.js';
 import { windProxy } from './wind.js';
 
 /**
@@ -59,11 +55,6 @@ function localProviderPlugins({ realtime, gemini } = {}) {
     ...(gemini ? [geminiLiveProxy({ realtime: gemini })] : []),
     googlePlacesContextProxy(),
     windProxy(),
-    weatherProxy(),
-    cycloneProxy(),
-    mapillaryProxy(),
-    firePerimetersProxy(),
-    gnssIntegrityProxy(),
     keySetupEndpoint(),
   ];
 }

@@ -19,15 +19,7 @@ import {
   loadWarendorfSourcesFromCatalog,
   loadNswSourcesFromOpenData,
   loadCalgarySourcesFromOpenData,
-  loadCataloniaSourcesFromOpenData,
-  loadHkSourcesFromOpenData,
   loadDelDOTSourcesFromOpenData,
-  loadKingCountySourcesFromOpenData,
-  loadWsdotSourcesFromOpenData,
-  loadVegvesenSourcesFromOpenData,
-  loadNycSourcesFromOpenData,
-  loadTorontoSourcesFromOpenData,
-  loadFloridaSourcesFromOpenData,
 } from './sources.js';
 
 /** Env kill switch: unset or anything but "0" means enabled. */
@@ -104,66 +96,9 @@ const LIVE_PACKS = [
     load: loadCalgarySourcesFromOpenData,
   },
   {
-    name: 'catalonia',
-    enabled: () => envEnabled('CCTV_CATALONIA_ENABLED'),
-    load: loadCataloniaSourcesFromOpenData,
-  },
-  {
-    name: 'hk',
-    enabled: () => envEnabled('CCTV_HK_ENABLED'),
-    load: loadHkSourcesFromOpenData,
-  },
-  {
     name: 'deldot',
     enabled: () => envEnabled('CCTV_DELDOT_ENABLED'),
     load: loadDelDOTSourcesFromOpenData,
-  },
-  {
-    name: 'kingcounty',
-    enabled: () => envEnabled('CCTV_KINGCOUNTY_ENABLED'),
-    load: loadKingCountySourcesFromOpenData,
-  },
-  {
-    name: 'wsdot',
-    enabled: () => envEnabled('CCTV_WSDOT_ENABLED'),
-    load: loadWsdotSourcesFromOpenData,
-  },
-  {
-    name: 'vegvesen',
-    enabled: () => envEnabled('CCTV_VEGVESEN_ENABLED'),
-    load: loadVegvesenSourcesFromOpenData,
-  },
-  {
-    // NYC DOT requires a data-sharing agreement for this feed, so the pack is
-    // off unless the operator opts in (see DATA_SOURCES.md).
-    name: 'nyc',
-    enabled: () => envOptIn('CCTV_NYC_ENABLED'),
-    load: loadNycSourcesFromOpenData,
-  },
-  {
-    name: 'toronto',
-    enabled: () => envEnabled('CCTV_TORONTO_ENABLED'),
-    load: loadTorontoSourcesFromOpenData,
-  },
-  {
-    // Opt-in until the Via Lietuva open-data terms are confirmed to cover the
-    // camera photos (see DATA_SOURCES.md).
-    name: 'lithuania',
-    enabled: () => envOptIn('CCTV_LITHUANIA_ENABLED'),
-    load: loadLithuaniaSources,
-  },
-  {
-    // FL511's terms limit its content to individual, personal use (other use
-    // needs FDOT's written consent), so the pack is off unless the operator
-    // opts in (see DATA_SOURCES.md).
-    name: 'florida',
-    enabled: () => envOptIn('CCTV_FLORIDA_ENABLED'),
-    load: loadFloridaSourcesFromOpenData,
-  },
-  {
-    name: 'taiwan',
-    enabled: () => envEnabled('CCTV_TAIWAN_ENABLED'),
-    load: loadTaiwanSources,
   },
 ];
 /**

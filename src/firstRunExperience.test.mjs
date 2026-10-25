@@ -970,17 +970,16 @@ test('the DISPLAY rail starts collapsed on a first run, and a stored choice wins
 
 // ── Voice: instruction-only, tool schema unchanged ─────────────────────
 
-test('the voice TOOL SCHEMA matches the pinned contract — the mission mapping is instructions only', () => {
+test('the voice TOOL SCHEMA matches the pinned release — the mission mapping is instructions only', () => {
   // Analyst layers and the separate satellite-pass tool deliberately extend the schema.
   // Canonical serialization pins every tool name, description, property and
   // ordering while allowing source formatting. Derived from the unchanged
   // release schema before formatting (the previous source-byte pin passed).
-  // Spatial selection is an intentional additive tool; preserve every shipped tool.
-  const block = JSON.stringify(GEV_REALTIME_TOOLS.filter(tool => tool.name !== 'spatial_selection'));
-  assert.equal(block.length, 26208, 'serialized tool schema length drifted');
+  const block = JSON.stringify(GEV_REALTIME_TOOLS);
+  assert.equal(block.length, 27271, 'serialized tool schema length drifted');
   assert.equal(
     crypto.createHash('sha256').update(block).digest('hex'),
-    'f3835c8f5b1732cbd5b45e3eb46baa9a979830be2d23dd1c9888a3e98a35f082',
+    'da5f1bb334d1e882d63098cb35b29afde273947c0807ef6af2ef3d25a0df4918',
     'the first-run missions must ride EXISTING tools: no schema edit, no cache bust',
   );
   const instructions = fs.readFileSync(

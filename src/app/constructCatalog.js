@@ -1,7 +1,3 @@
-import { resolveCatalogSources } from './sourceComposition.js';
-import { createWeatherClock } from '../layers/weather/clock.js';
-import { createWeatherLayer } from '../layers/weather/index.js';
-import { createCyclonesLayer } from '../layers/cyclones/index.js';
 import { createWindLayer } from '../layers/wind/index.js';
 import { createLayerCatalog } from './catalog.js';
 import { LAYER_STATE_REGISTRY } from '../data/layerState.js';
@@ -35,21 +31,29 @@ import { localGeoJsonServices } from './localGeojsonServices.js';
 import { createBhoteKoshiEventLayer } from '../data/bhoteKoshiEvent.js';
 import { createBhoteKoshiLocatorLayer } from '../data/bhoteKoshiLocator.js';
 
-/**
- * Hardware-local layers are registered like any other but never enter share
- * links or stored layer state: another browser cannot have this receiver.
- */
-export const LOCAL_ONLY_LAYER_METADATA = Object.freeze([
-  Object.freeze({ id: 'local-adsb', disposition: 'local-only' }),
-  // Voice search results belong to this session, like a receiver to this machine.
-  Object.freeze({ id: 'osm-places', disposition: 'local-only' }),
-]);
-
-/** Serialization metadata for every layer the application catalog constructs. */
-export const APPLICATION_LAYER_METADATA = Object.freeze([
-  ...LAYER_STATE_REGISTRY,
-  ...LOCAL_ONLY_LAYER_METADATA,
-]);
+const SOURCE_METHODS = Object.freeze({
+  flights: ['getSnapshot'],
+  military: ['getSnapshot'],
+  vessels: ['getSnapshot'],
+  cctv: ['getCatalog', 'getHealth', 'getFrameUrl', 'getMediaUrl'],
+  radio: ['getDirectory', 'recordClick'],
+  traffic: [
+    'requestRoads',
+    'getStatus',
+    'fetchFlowForBounds',
+    'getFlowSessionStats',
+    'resetFlowTileCache',
+  ],
+  bikeshare: ['getStations'],
+  installations: ['getMappedSites', 'searchNearby'],
+  satellites: ['readGroup'],
+  launches: ['getLaunches', 'getActiveTle'],
+  alpr: ['fetch'],
+  firms: ['getSnapshot'],
+  wind: ['getSnapshot'],
+  earthquakes: ['getSnapshot'],
+  cables: ['fetch'],
+});
 
 /** Construct the current catalog without choosing any source provider.
  * Scene engines remain page-owned; layers and classification have this app's lifetime.
@@ -153,23 +157,7 @@ export function createApplicationCatalog({
           vessels,
           installations,
         }),
-        createWindLayer({ feed: sources.wind, clock: weatherClock }),
-        createWeatherLayer({
-          feed: sources.weather,
-          id: 'weather-radar',
-          clock: weatherClock,
-        }),
-        createWeatherLayer({
-          feed: sources.weather,
-          id: 'weather-satellite',
-          clock: weatherClock,
-        }),
-        createWeatherLayer({
-          feed: sources.weather,
-          id: 'weather-lightning',
-          clock: weatherClock,
-        }),
-        createCyclonesLayer({ feed: sources.cyclones }),
+        createWindLayer({ feed: sources.wind }),
         ...createInfrastructureLayers(localGeoJsonServices),
         createApplicationCables({ source: sources.cables }),
         createApplicationFirms({

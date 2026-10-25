@@ -298,59 +298,8 @@ function satelliteFilterOption() {
 }
 
 const OPTION_GROUPS = Object.freeze({
-  traffic: Object.freeze([
-    enumOption('roadMode', 'r', null, ['tomtom', 'osm', 'hybrid'], {
-      tomtom: 't',
-      osm: 'o',
-      hybrid: 'h',
-    }),
-  ]),
-  'weather-lightning': Object.freeze([
-    enumOption('opacity', 'o', 'strong', ['light', 'strong'], {
-      light: 'l',
-      strong: 's',
-    }),
-  ]),
-  'weather-radar': Object.freeze([
-    enumOption('product', 'p', 'radar', ['radar', 'radar-global'], {
-      radar: 'r',
-      'radar-global': 'g',
-    }),
-    enumOption('opacity', 'o', 'strong', ['light', 'strong'], {
-      light: 'l',
-      strong: 's',
-    }),
-  ]),
-  'weather-satellite': Object.freeze([
-    satelliteFilterOption(),
-    enumOption('opacity', 'o', 'strong', ['light', 'strong'], {
-      light: 'l',
-      strong: 's',
-    }),
-    enumOption(
-      'product',
-      'p',
-      'clouds-regional',
-      ['clouds', 'clouds-regional'],
-      { clouds: 'g', 'clouds-regional': 'r' },
-    ),
-  ]),
   wind: Object.freeze([
     enumOption('model', 'm', 'gfs', ['gfs', 'ifs'], { gfs: 'g', ifs: 'i' }),
-    enumOption(
-      'overlay',
-      'o',
-      'none',
-      ['none', 'speed', 'temperature', 'pressure'],
-      { none: 'n', speed: 's', temperature: 't', pressure: 'p' },
-      { absentValue: 'speed' },
-    ),
-    enumOption('units', 'u', 'km/h', ['km/h', 'm/s', 'mph'], {
-      'km/h': 'k',
-      'm/s': 'm',
-      mph: 'i',
-    }),
-    booleanOption('paused', 'p', false),
   ]),
   flights: Object.freeze([
     // Owner directive 2026-08-22: the fleet's 3D models are DEFAULT-ON in
@@ -683,29 +632,6 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     optionOwner: 'traffic',
   }),
   Object.freeze({ id: 'transit', token: 'j', disposition: 'enabled-only' }),
-  Object.freeze({
-    id: 'weather-cyclones',
-    token: 'y',
-    disposition: 'enabled-only',
-  }),
-  Object.freeze({
-    id: 'weather-lightning',
-    token: 'l',
-    disposition: 'enabled+options',
-    optionOwner: 'weather-lightning',
-  }),
-  Object.freeze({
-    id: 'weather-radar',
-    token: 'v',
-    disposition: 'enabled+options',
-    optionOwner: 'weather-radar',
-  }),
-  Object.freeze({
-    id: 'weather-satellite',
-    token: 'o',
-    disposition: 'enabled+options',
-    optionOwner: 'weather-satellite',
-  }),
   Object.freeze({
     id: 'wind',
     token: 'k',

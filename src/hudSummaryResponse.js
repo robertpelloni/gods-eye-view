@@ -83,14 +83,12 @@ export function hudSummaryLayerContext(layers = [], options) {
 }
 
 /**
- * The feed state and up to two layer names for the HUD telemetry suffix when
- * an enabled feed is not nominal. Values stay English (`state` is a feed-state
- * id, `names` are `layer.name`); the HUD translates them for display.
+ * Deterministic telemetry suffix when an enabled feed is not nominal.
  * @param {Array<object>} [layers]
  * @param {{ now?: number }} [options]
- * @returns {{ state: string, names: string[] }|null}
+ * @returns {string|null}
  */
-export function hudTelemetryProvenance(layers = [], options) {
+export function hudTelemetryProvenanceTag(layers = [], options) {
   const snapshots = layerSnapshots(layers, options).filter((s) => s.enabled);
   const envelope = feedProvenanceEnvelope(snapshots, options);
   if (!envelope.overall || envelope.overall === 'nominal') return null;
@@ -98,9 +96,9 @@ export function hudTelemetryProvenance(layers = [], options) {
     .filter(
       (s) => s.feedState && s.feedState !== 'nominal' && s.feedState !== 'off',
     )
-    .map((s) => String(s.name || s.id || 'LAYER'))
+    .map((s) => String(s.name || s.id || 'LAYER').toUpperCase())
     .slice(0, 2);
-  return { state: envelope.overall, names };
+  return `${envelope.overall.toUpperCase()}${names.length ? ` ${names.join('/')}` : ''}`;
 }
 
 /** Require the supplied non-nominal state before showing an AI summary. */

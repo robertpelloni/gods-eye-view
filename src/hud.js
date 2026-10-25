@@ -29,16 +29,9 @@ import { getBasemapLabelContext } from './voice/gevActions.js';
 import {
   hudSummaryMatchesProvenance,
   hudSummaryLayerContext,
-  hudTelemetryProvenance,
+  hudTelemetryProvenanceTag,
   isHudSummaryUnconfigured,
 } from './hudSummaryResponse.js';
-import {
-  applyHudUiTheme,
-  DEFAULT_HUD_LAYOUT,
-  normalizeHudLayout,
-} from './hudLayouts.js';
-import { formatNumber, msg, t } from './i18n/index.js';
-import { localizeLayerName } from './ui/layerPanel.js';
 
 /** Color palettes keyed by shader mode; applied as CSS custom properties. */
 const HUD_COLORS = {
@@ -745,24 +738,10 @@ export class IntelHUD {
       LOCALIZED_LOCALITY,
     );
 
-    const provenance = localizedProvenanceTag(
-      hudTelemetryProvenance(this._dataManager?.getAll?.() || []),
+    const provenance = hudTelemetryProvenanceTag(
+      this._dataManager?.getAll?.() || [],
     );
-    // ALT, SUN and ONA are sensor codes, as in the corner readouts.
-    const line = t(
-      '{mode} {band} {locality} | {region} | ALT {alt} | WINDOW {window} | SUN {sun}° | ONA {ona}° | {zone}',
-      {
-        mode: modeLabel,
-        band: viewBandLabel(band),
-        locality: localityTag,
-        region: REGION_LABELS[region] ? t(REGION_LABELS[region]) : region,
-        alt: altTag,
-        window: winTag,
-        sun: formatNumber(Math.round(m.sunEl)),
-        ona: formatNumber(Math.round(m.ona)),
-        zone: localTag,
-      },
-    );
+    const line = `${modeLabel} ${band} ${localityTag} | ${region} | ALT ${altTag} | WINDOW ${winTag} | SUN ${m.sunEl.toFixed(0)}° | ONA ${m.ona.toFixed(0)}° | ${localTag}`;
     return provenance ? `${line} | ${provenance}` : line;
   }
 

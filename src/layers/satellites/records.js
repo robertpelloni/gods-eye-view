@@ -37,9 +37,7 @@ export function mapAnalystRecord(raw) {
     // Empty records stay class-less; the class table's fallback is VISUAL and
     // must not leak onto a row that has no satellite identity.
     satelliteClass:
-      noradId || group
-        ? satelliteClassLabel(group, { isIss, localize: false })
-        : null,
+      noradId || group ? satelliteClassLabel(group, { isIss }) : null,
     group,
   };
 }

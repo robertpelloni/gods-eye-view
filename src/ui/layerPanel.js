@@ -87,6 +87,10 @@ const PANEL_GROUPS = [
     ],
   },
   {
+    label: 'Weather',
+    ids: ['wind'],
+  },
+  {
     label: 'Utilities',
     ids: ['directions', 'radio', 'osm-places'],
   },
@@ -521,10 +525,21 @@ export class LayerPanel {
     const legend = controls?.legend || [];
     const infoText = controls?.info;
     this._syncRowList(listContainer, controls?.list || null);
-    container.hidden = chips.length === 0 && legend.length === 0 && !infoText;
+    container.hidden =
+      chips.length === 0 && legend.length === 0 && !controls?.info;
 
-    const info = container._rowControlsInfo || null;
-    const firstLegend = container.querySelector('.data-toggle-legend-item');
+    for (const node of [...container.children]) {
+      if (
+        String(node.className)
+          .split(/\s+/)
+          .some((name) =>
+            ['data-toggle-legend-item', 'data-toggle-controls-info'].includes(
+              name,
+            ),
+          )
+      )
+        node.remove();
+    }
 
     syncChipGroup(container, chips, { before: firstLegend || info });
 
@@ -557,20 +572,29 @@ export class LayerPanel {
       }
       container._legendSignature = legendSignature;
     }
-    if (infoText || info) {
-      const node = info || document.createElement('div');
-      if (!info) {
-        container.appendChild(node);
-        container._rowControlsInfo = node;
-      }
-      const className = 'data-toggle-controls-info';
-      if (node.className !== className) node.className = className;
-      const text = infoText ? String(infoText) : '';
-      const title = controls?.infoTitle || '';
-      if (node.textContent !== text) node.textContent = text;
-      if (node.title !== title) node.title = title;
-      const hidden = !text;
-      if (node.hidden !== hidden) node.hidden = hidden;
+    for (const node of stale.values()) node.remove();
+
+    for (const item of legend) {
+      const entry = document.createElement('span');
+      entry.className = 'data-toggle-legend-item';
+      if (item.blurb) entry.title = item.blurb;
+      const swatch = document.createElement('span');
+      swatch.className = 'data-toggle-legend-swatch';
+      swatch.style.background = item.color;
+      const text = document.createElement('span');
+      text.textContent =
+        item.count == null
+          ? String(item.label)
+          : `${item.label} ${this._formatCount(item.count)}`;
+      entry.append(swatch, text);
+      container.appendChild(entry);
+    }
+    if (controls?.info) {
+      const info = document.createElement('div');
+      info.className = 'data-toggle-controls-info';
+      info.textContent = String(controls.info);
+      if (controls.infoTitle) info.title = controls.infoTitle;
+      container.appendChild(info);
     }
   }
 

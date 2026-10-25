@@ -1,6 +1,6 @@
-import { normalizeDisplayText } from '../data/displayText.js';
 import {
   layerSnapshot,
+  layerSnapshots,
   feedProvenanceEnvelope,
 } from '../data/layerSnapshot.js';
 import { readLayerLifecycleSummary } from './layerSummary.js';
@@ -3276,12 +3276,53 @@ function getCurrentViewState(
   dataManager,
   sceneDirector = null,
 ) {
-  return getWorldPacket({
-    viewer,
-    styleManager,
-    dataManager,
-    sceneDirector,
-  });
+  const cartographic = Cesium.Cartographic.fromCartesian(
+    viewer.camera.positionWC,
+  );
+  return {
+    ok: true,
+    action: 'get_current_view_state',
+    camera: {
+      latitude: Cesium.Math.toDegrees(cartographic.latitude),
+      longitude: Cesium.Math.toDegrees(cartographic.longitude),
+      heightM: cartographic.height,
+    },
+    style: styleManager.activeStyle || 'normal',
+    context:
+      typeof styleManager.getContextModeState === 'function'
+        ? {
+            ...withContextModeVocabulary(styleManager.getContextModeState()),
+            // The numbers on the operator's Contacts panel, so a window/count
+            // question can be answered from what they are looking at.
+            ...(activeContactsWindow(dataManager)
+              ? { contactsWindow: activeContactsWindow(dataManager) }
+              : {}),
+          }
+        : null,
+    cockpit:
+      typeof styleManager.getCockpitState === 'function'
+        ? styleManager.getCockpitState()
+        : null,
+    controls:
+      typeof styleManager.getControlState === 'function'
+        ? styleManager.getControlState()
+        : null,
+    scenePlayback: sceneDirector?.getPlaybackStatus?.() || null,
+    tracked: collectTrackedEntities(dataManager),
+    layers: dataManager.getAll().map((layer) => ({
+      id: layer.id,
+      name: layer.name,
+      enabled: layer.enabled,
+      count: layer.stats?.count || 0,
+      error: layer.stats?.error || null,
+      feedState: layerSnapshot(layer).feedState,
+      source: layerSnapshot(layer).source,
+      lastUpdate: layerSnapshot(layer).lastUpdate,
+    })),
+    feedProvenance: feedProvenanceEnvelope(
+      layerSnapshots(dataManager.getAll()).filter((layer) => layer.enabled),
+    ),
+  };
 }
 
 async function getEntityContext(
@@ -4729,6 +4770,29 @@ function analystProviders(
       );
       return note ? note.trim() : null;
     },
+    getLayerSnapshot(layerKey) {
+      const row = dataManager.getAll?.().find((layer) => layer.id === layerKey);
+      if (row) return layerSnapshot(row);
+      const module = dataManager.layers?.get(layerKey)?.module;
+      return layerSnapshot({
+        id: layerKey,
+        enabled: dataManager.isEnabled?.(layerKey),
+        stats: module?.getStats?.() || {},
+      });
+    },
+    getRecordCoverage(layerKey, rows) {
+      if (!['satellites', 'local-datacenters', 'local-dams'].includes(layerKey))
+        return null;
+      const module = dataManager.layers.get(layerKey)?.module;
+      const loaded = module?.getStats?.().count;
+      return {
+        basis: 'bounded-loaded-records',
+        recordsExamined: rows.length,
+        loadedCount: Number.isFinite(loaded) ? loaded : null,
+        sourceTruncated: Number.isFinite(loaded) ? loaded > rows.length : null,
+        note: 'Counts and ranks apply only to these examined loaded records, not all satellites or infrastructure; distance is ground great-circle distance.',
+      };
+    },
     resolveRegionRing,
     ...(resolveAreaScope ? { resolveAreaScope } : {}),
     /**
@@ -4958,14 +5022,50 @@ async function runAnalystQuery(
       code: result.code || null,
       error: result.error,
     };
-    // The engine's semantic fields pass through unchanged: a clarification
-    // keeps its candidates, a cancellation stays a cancellation.
-    for (const key of ANALYST_REFUSAL_FIELDS)
-      if (result[key] !== undefined) refusal[key] = result[key];
-    if (result.coverage) refusal.coverage = result.coverage;
-    return refusal;
-  }
-  const items = result.items.map(compactAnalystItem);
+  // Compact payload for the voice model: identity + the fields queries sort/
+  // filter on. The full record set stays engine-side for follow-ups.
+  //
+  // `icao24`/`mmsi` ride along because the tool instructions tell the model to
+  // hand this result straight to track_entity, and `id` is a DISPLAY label
+  // (callsign, else registration, else hex). A callsign-less contact therefore
+  // handed track_entity a tail number the lookup could not resolve, and the
+  // model burned the turn on retries (owner field session 2026-08-21, 23:48).
+  const items = result.items.map((r) => {
+    const compact = { layerKey: r.layerKey, id: r.id };
+    for (const k of [
+      'icao24',
+      'mmsi',
+      'registration',
+      'label',
+      'callsign',
+      'name',
+      'altitudeM',
+      'speedMps',
+      'speedKts',
+      'frp',
+      'magnitude',
+      'shipType',
+      'destination',
+      'operator',
+      'routeOrigin',
+      'routeDestination',
+      'aircraftClass',
+      'military',
+      'onGround',
+      'distanceKm',
+      'confidence',
+      'place',
+      'noradId',
+      'satelliteClass',
+      'group',
+      'river',
+      'output',
+      'capacity',
+    ]) {
+      if (r[k] !== null && r[k] !== undefined) compact[k] = r[k];
+    }
+    return compact;
+  });
   // Warm-up honesty: a layer enabled seconds ago hasn't finished its first
   // poll (entity layers render one interval behind live BY DESIGN) — so a low
   // count is "still loading", not fact.
@@ -4995,8 +5095,22 @@ async function runAnalystQuery(
   // differ. The generic record/scope engine still owns explicit regions and
   // arbitrary points — only "how many aircraft around <this contact>" is
   // unified, because that is the question the panel is already answering.
+  const entityWindow = aircraftProximityWindowForQuery(
+    dataManager,
+    args,
+    result,
+  );
   if (entityWindow) {
-    return entityWindow;
+    const provenance = feedProvenanceEnvelope(
+      layerSnapshots(dataManager.getAll?.() || []).filter(
+        (layer) => layer.enabled && ['flights', 'military'].includes(layer.id),
+      ),
+    );
+    return {
+      ...entityWindow,
+      feedProvenance: provenance,
+      feedState: provenance.overall,
+    };
   }
 
   const contactsWindow = activeContactsWindow(dataManager);

@@ -777,7 +777,16 @@ const schemas = [
           type: 'array',
           items: {
             type: 'string',
-            enum: [...VOICE_QUERY_LAYER_IDS],
+            enum: [
+              'flights',
+              'military',
+              'ais-live-vessels',
+              'local-firms',
+              'earthquakes',
+              'satellites',
+              'local-datacenters',
+              'local-dams',
+            ],
           },
         },
         scope: {
@@ -958,17 +967,18 @@ const schemas = [
     },
   },
   {
-    name: 'spatial_selection',
+    name: 'next_satellite_pass',
     parameters: {
       type: 'object',
       additionalProperties: false,
+      required: ['target'],
       properties: {
-        action: {
-          type: 'string',
-          enum: ['context', 'color_by_use', 'recorded_height'],
-        },
+        target: { type: 'string', minLength: 1, maxLength: 120 },
+        latitude: { type: 'number', minimum: -90, maximum: 90 },
+        longitude: { type: 'number', minimum: -180, maximum: 180 },
+        minElevationDeg: { type: 'number', minimum: 5, maximum: 60 },
+        visibleOnly: { type: 'boolean' },
       },
-      required: ['action'],
     },
   },
 ];

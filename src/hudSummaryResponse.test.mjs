@@ -5,7 +5,7 @@ import {
   HUD_SUMMARY_INSTRUCTIONS,
   HUD_SUMMARY_UNCONFIGURED_CODE,
   hudSummaryLayerContext,
-  hudTelemetryProvenance,
+  hudTelemetryProvenanceTag,
   isHudSummaryUnconfigured,
   keylessHudSummaryResponse,
 } from './hudSummaryResponse.js';
@@ -168,12 +168,7 @@ test('HUD summary context and telemetry tag carry chip-identical feed-state', ()
       id: 'flights',
       name: 'Live Flights',
       enabled: true,
-      stats: {
-        stale: true,
-        count: 12,
-        lastUpdate: now - 240_000,
-        source: 'OpenSky Network',
-      },
+      stats: { stale: true, count: 12, lastUpdate: now - 240_000, source: 'OpenSky Network' },
     },
     {
       id: 'earthquakes',
@@ -186,66 +181,27 @@ test('HUD summary context and telemetry tag carry chip-identical feed-state', ()
   assert.deepEqual(context.enabledLayerLabels, ['Live Flights']);
   assert.equal(context.enabledLayers[0].feedState, 'stale');
   assert.equal(context.feedProvenance.overall, 'stale');
-  assert.deepEqual(hudTelemetryProvenance(layers, { now }), {
-    state: 'stale',
-    names: ['Live Flights'],
-  });
-  assert.equal(
-    hudTelemetryProvenance(
-      [
-        {
-          id: 'flights',
-          name: 'Live Flights',
-          enabled: true,
-          stats: { count: 4, lastUpdate: now },
-        },
-      ],
-      { now },
-    ),
-    null,
-  );
+  assert.equal(hudTelemetryProvenanceTag(layers, { now }), 'STALE LIVE FLIGHTS');
+  assert.equal(hudTelemetryProvenanceTag([{
+    id: 'flights', name: 'Live Flights', enabled: true, stats: { count: 4, lastUpdate: now },
+  }], { now }), null);
 });
 
 test('HUD summary instructions require non-nominal feedState in the five words', () => {
-  assert.match(
-    HUD_SUMMARY_INSTRUCTIONS,
-    /five words MUST include that feedState token/,
-  );
-  assert.match(
-    HUD_SUMMARY_INSTRUCTIONS,
-    /STALE, DEGRADED, FALLBACK, LOADING, or UNAVAILABLE/,
-  );
+  assert.match(HUD_SUMMARY_INSTRUCTIONS, /five words MUST include that feedState token/);
+  assert.match(HUD_SUMMARY_INSTRUCTIONS, /STALE, DEGRADED, FALLBACK, LOADING, or UNAVAILABLE/);
   assert.match(HUD_SUMMARY_INSTRUCTIONS, /feedProvenance/);
 });
 
 test('the HUD proxy uses the shared provenance instructions', () => {
-  const local = readFileSync(
-    new URL('../server/providers/openai/hud-summary.js', import.meta.url),
-    'utf8',
-  );
+  const local = readFileSync(new URL('../server/providers/openai/hud-summary.js', import.meta.url), 'utf8');
   assert.match(local, /HUD_SUMMARY_INSTRUCTIONS/);
   assert.doesNotMatch(local, /enabled-layer text labels/);
 });
 
 test('AI summaries missing a non-nominal provenance token fall back deterministically', async () => {
-  const { hudSummaryMatchesProvenance } =
-    await import('./hudSummaryResponse.js');
-  assert.equal(
-    hudSummaryMatchesProvenance('Austin flights operating normally today', {
-      overall: 'stale',
-    }),
-    false,
-  );
-  assert.equal(
-    hudSummaryMatchesProvenance('Austin stale flights over downtown', {
-      overall: 'stale',
-    }),
-    true,
-  );
-  assert.equal(
-    hudSummaryMatchesProvenance('Austin flights operating normally today', {
-      overall: 'nominal',
-    }),
-    true,
-  );
+  const { hudSummaryMatchesProvenance } = await import('./hudSummaryResponse.js');
+  assert.equal(hudSummaryMatchesProvenance('Austin flights operating normally today', { overall: 'stale' }), false);
+  assert.equal(hudSummaryMatchesProvenance('Austin stale flights over downtown', { overall: 'stale' }), true);
+  assert.equal(hudSummaryMatchesProvenance('Austin flights operating normally today', { overall: 'nominal' }), true);
 });

@@ -15,8 +15,6 @@ import {
   CCTV_MAX_SOURCES_CEILING,
 } from './cctv/constants.js';
 import { sanitizeCctvRangeHeader } from './cctv/range.js';
-import { admitSameSiteKeyless } from './common/same-site.js';
-import { PROXY_SIGNALS } from '../../src/localRequestGate.mjs';
 import { createHlsPuller } from './cctv/stream.js';
 import { googleServerApiKey } from './places/google-key.js';
 export { CCTV_FRAME_FETCH_TIMEOUT_MS, fetchCctvImageFromUpstream };
@@ -227,21 +225,6 @@ export function cctvProxy({ sourceRoot = process.cwd() } = {}) {
           const source = sourceById.get(cameraId);
           const mediaUrl = source?.url || '';
           const feedType = normalizeFeedType(source?.feedType || 'image');
-          // Live feeds only. A still camera is served by /frame, whose fetch
-          // keeps redirects on the registered origin, accepts only raster
-          // images and caps the body; relaying it here would bypass all three.
-          if (!isVideoFeedType(feedType) && feedType !== 'mjpeg') {
-            res.writeHead(404, {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-store',
-            });
-            res.end(
-              JSON.stringify({
-                error: 'No live media for this camera; use the frame endpoint',
-              }),
-            );
-            return;
-          }
           const leaseId = url.searchParams.get('lease');
           if (feedType === 'hls' && !/^[a-f0-9-]{36}$/i.test(leaseId || '')) {
             res.writeHead(400);

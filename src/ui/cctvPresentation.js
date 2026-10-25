@@ -1,7 +1,3 @@
-import { updateStatusBadge } from './statusBadge.js';
-import { t, tn } from '../i18n/index.js';
-import { cctvSourceLabelText, cctvSourceMessageText } from './cctvFrames.js';
-
 import { createCctvVideoSurface } from './cctvVideo.js';
 export function _calBadgeLabel(badge) {
   switch (badge) {

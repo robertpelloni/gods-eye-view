@@ -34,33 +34,57 @@ import { pointInPreparedArea, prepareArea } from './areaGeometry.js';
 import { VOICE_LAYER_MANIFEST, voiceLayer } from '../voice/layerManifest.js';
 import { greatCircleKm } from '../geoDistance.js';
 
-/**
- * Layers the engine understands, with the fields queries may reference,
- * derived from the voice layer manifest (one source for the tool enums, the
- * runner and this engine).
- */
-export const ANALYST_LAYERS = Object.freeze(
-  Object.fromEntries(
-    VOICE_LAYER_MANIFEST.filter((entry) => entry.query).map((entry) => {
-      const byType = (type) =>
-        Object.entries(entry.query.fields)
-          .filter(([, spec]) => spec.type === type)
-          .map(([name]) => name);
-      return [
-        entry.id,
-        Object.freeze({
-          numeric: byType('number'),
-          text: byType('text'),
-          flags: byType('flag'),
-          time: byType('time'),
-          window: entry.query.window,
-          timeField: entry.query.timeField,
-          caveat: entry.query.caveat,
-        }),
-      ];
-    }),
-  ),
-);
+/** Layers the engine understands, with the fields queries may reference. */
+export const ANALYST_LAYERS = {
+  flights: {
+    numeric: ['altitudeM', 'speedMps', 'verticalRateMps'],
+    text: [
+      'callsign',
+      'icao24',
+      'originCountry',
+      'operator',
+      'routeOrigin',
+      'routeDestination',
+      'aircraftClass',
+    ],
+    flags: ['military', 'onGround'],
+  },
+  military: {
+    numeric: ['altitudeM', 'speedMps', 'verticalRateMps'],
+    text: ['callsign', 'icao24', 'originCountry', 'operator', 'aircraftClass'],
+    flags: ['military', 'onGround'],
+  },
+  'ais-live-vessels': {
+    numeric: ['speedKts', 'courseDeg'],
+    text: ['name', 'mmsi', 'shipType', 'destination', 'navStatus'],
+    flags: [],
+  },
+  'local-firms': {
+    numeric: ['frp'],
+    text: ['confidence', 'satellite'],
+    flags: [],
+  },
+  earthquakes: {
+    numeric: ['magnitude', 'depthKm'],
+    text: ['place'],
+    flags: [],
+  },
+  satellites: {
+    numeric: ['altitudeM', 'speedMps'],
+    text: ['name', 'noradId', 'satelliteClass', 'group'],
+    flags: [],
+  },
+  'local-datacenters': {
+    numeric: [],
+    text: ['name', 'operator', 'capacity'],
+    flags: [],
+  },
+  'local-dams': {
+    numeric: [],
+    text: ['name', 'operator', 'river', 'output'],
+    flags: [],
+  },
+};
 
 /** Fields every record carries regardless of layer. */
 const COMMON_FIELDS = Object.freeze(['id', 'lat', 'lon']);
@@ -730,7 +754,18 @@ export function createAnalystEngine(providers) {
         ? spec.layers
         : ['flights'];
 
-    if (!followUp) {
+    // 1) Source records
+    let records;
+    let layersQueried;
+    let queriedSnapshots;
+    if (layers === null) {
+      records = lastResult.items.slice();
+      layersQueried = lastResult.coverage.layersQueried;
+      queriedSnapshots = lastResult.coverage.feedProvenance?.layers || [];
+    } else {
+      records = [];
+      layersQueried = [];
+      queriedSnapshots = [];
       const unknown = layers.filter((k) => !ANALYST_LAYERS[k]);
       if (unknown.length) {
         return refusal(
@@ -772,32 +807,9 @@ export function createAnalystEngine(providers) {
         const rows = providers.getRecords(key) || [];
         const snapshot = providers.getLayerSnapshot?.(key);
         if (snapshot) queriedSnapshots.push(snapshot);
-        const coverage = providers.getRecordCoverage?.(key, rows) || {};
-        // Unknown when a capped layer cannot say how many it holds.
-        const total = Number.isFinite(coverage.total)
-          ? coverage.total
-          : coverage.truncated
-            ? null
-            : rows.length;
-        const layer = ANALYST_LAYERS[key];
-        const status = layerStatus(
-          snapshot,
-          rows.length,
-          providers.isWarming?.(key) === true,
-        );
-        // Why an enabled layer holds nothing here ("fly below 400 km…").
-        const emptyNote =
-          status === 'empty' ? providers.getEmptyNote?.(key) || null : null;
         layersQueried.push({
           layerKey: key,
-          status,
-          ...(emptyNote ? { note: emptyNote } : {}),
-          returned: rows.length,
-          total,
-          truncated:
-            coverage.truncated === true ||
-            (total !== null && total > rows.length),
-          ...(layer.window ? { window: layer.window } : {}),
+          records: rows.length,
           ...(snapshot
             ? {
                 feedState: snapshot.feedState,
@@ -807,8 +819,9 @@ export function createAnalystEngine(providers) {
                 error: snapshot.error,
               }
             : {}),
+          ...providers.getRecordCoverage?.(key, rows),
         });
-        groups.push({ key, rows });
+        for (const row of rows) records.push({ layerKey: key, ...row });
       }
       // Nothing can answer: say why instead of answering zero.
       const statuses = layersQueried.map((layer) => layer.status);
@@ -1084,11 +1097,15 @@ export function createAnalystEngine(providers) {
         layersQueried,
         records: totals,
         scope: scopeNote,
-        ...(rememberedCoverageNote ? { note: rememberedCoverageNote } : {}),
         ...(queriedSnapshots.length
           ? { feedProvenance: feedProvenanceEnvelope(queriedSnapshots) }
           : {}),
-        followUp,
+        followUp: Boolean(spec.followUp && lastResult),
+        note: layersQueried.some(
+          (layer) => layer.basis === 'bounded-loaded-records',
+        )
+          ? 'Counts and ranks cover the bounded examined loaded records only; omitted records may change the nearest item or count. Satellite distance is ground distance, not slant range.'
+          : 'client-side data only — answers cover what the enabled layers currently hold',
       },
       // Surfaced so the narration can name the centre it measured from rather
       // than implying a view-centred answer.

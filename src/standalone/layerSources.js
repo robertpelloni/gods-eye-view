@@ -14,9 +14,7 @@ import { createBikeshareSource } from '../layers/bikeshare/source.js';
 import { createInstallationSource } from '../layers/installations/source.js';
 import { createSatelliteSource } from '../layers/satellites/source.js';
 import { createLaunchSource } from '../layers/launches/source.js';
-import { createAlprTileSource } from '../layers/alpr/source.js';
-import { createWeatherSource } from '../layers/weather/source.js';
-import { createCycloneSource } from '../layers/cyclones/source.js';
+import { createOverpassAlprSource } from '../layers/alpr/source.js';
 import { createWindSource } from '../layers/wind/source.js';
 import { createFirmsSource } from '../layers/firms/source.js';
 import { createMapillarySource } from '../layers/streetLevel/providers/mapillary/source.js';
@@ -54,11 +52,6 @@ export function createStandaloneLayerSources({
     alpr: createAlprTileSource(),
     firms: createFirmsSource(),
     wind: createWindSource(),
-    weather: createWeatherSource(),
-    cyclones: createCycloneSource(),
-    mapillary: createMapillarySource({
-      token: import.meta.env?.MAPILLARY_CLIENT_TOKEN || '',
-    }),
   };
   for (const name of Object.keys(overrides)) {
     if (!Object.hasOwn(defaults, name))
