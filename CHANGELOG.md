@@ -779,56 +779,6 @@
   (`src/ui/imagerySplit.js`, `src/maps/imageryComparison.js`), and
   `MapSourceController.subscribe()` reports every settled map switch.
 
-## Unreleased — voice geometry
-
-- `resolve_area` turns a named place into a reusable area and can outline
-  it. It uses the same outline sources as voice outlines: bundled Natural
-  Earth regions, countries, states and counties, US Census places and
-  neighborhoods, then the guarded Nominatim outline, then Overpass only when
-  `OVERPASS_UPSTREAMS` is set. Every part and hole is kept. A name several
-  countries or states share ("Georgia", "Punjab") is asked about unless the
-  view is inside one of them. Administrative geometry is stored only when its
-  source identity agrees with the requested unit; stale or unverified units
-  are refused instead of relabelled. Clarification IDs have a documented
-  bounded grammar and round-trip through the production tool schema.
-- "Draw an area around <landmark>" outlines the mapped area enclosing it,
-  or a 250 m buffer marked approximate.
-- `analyst_query` counts inside an area (`area`), the area you drew
-  (`drawn`) or an outline on the map (`annotation`); region counts include
-  every part and leave out holes.
-- `find_imagery` shows the best recent acquisition for an area, the view or
-  the spot under the pointer through the Recent Imagery panel, and stops if
-  you change the panel or turn the layer off while it searches.
-- `osm_query` ("hospitals in Kathmandu") lists places of one kind into a
-  session-only OSM Places layer. It is offered only when
-  `OVERPASS_UPSTREAMS` is set; public Nominatim is never used for it.
-  Turning OSM Places off while a search is pending cancels that action without
-  re-enabling the layer or committing stale results or follow-up memory.
-
-## Unreleased — voice reaches every layer; honest analyst answers
-
-- Voice can switch on every shipped data layer (the two scene-driven
-  Bhote Koshi layers stay scene-only), including transit, Recent
-  Imagery, wind, the weather layers, cyclones and mapped installations, and
-  understands their spoken names ("buses", "hurricanes", "military bases").
-  One voice manifest (`src/voice/layerManifest.js`) generates the tool enums
-  and aliases, and a unit test fails when a new layer has no entry.
-- `analyst_query` counts up to 250,000 loaded records per layer instead of the
-  first 2,000, and says when a layer went past that (`complete: false`). It
-  also answers over bikeshare stations, transit vehicles, rocket launches,
-  cyclones, ALPR cameras, mapped installations, local ADS-B aircraft and fire perimeters; fire
-  records carry their sensor (VIIRS or MODIS).
-- Unknown fields, operators, units, value types, scope kinds and invalid
-  centres are refused with the allowed values instead of answering zero or widening to anywhere. A
-  layer that is off, still loading or unavailable is reported as such, not
-  as a count of zero; a partly answerable query is marked `partial`.
-  Distance sorts honour `sortDir`, a written unit such as `altitudeM(ft)`
-  converts, and large rankings no longer sort the whole set.
-- Results carry `lat`/`lon` for each item and a `display` object with the
-  scope, the feed window (earthquakes and fires cover the last 24 h) and any
-  caveat for the screen. The model is asked to answer in one short phrase.
-- The weather and Recent Imagery panels can be opened by voice.
-
 ## Unreleased — voice outlines without Overpass
 
 - Voice outlines work again without Overpass. Bundled US Census places and
