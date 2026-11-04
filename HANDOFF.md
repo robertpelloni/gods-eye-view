@@ -1,0 +1,28 @@
+# Autonomous Engineering Session Handoff (HANDOFF.md)
+
+## 1. Executive Summary & Context Snapshot
+- **Autopilot Cycle**: Protocol #268 autonomous execution.
+- **Base Version**: `0.2.0-sovereign.1` (Build 1480), referencing `VERSION.md`.
+- **Target Platform**: Sovereign Awareness Platform (God's Eye View) with personal sensor fusion and course infrastructure.
+
+## 2. Structural Shifts & Architectural Observations
+- **Branch and Git State**:
+  - The repository has `origin` pointing to `https://github.com/robertpelloni/gods-eye-view`. No external `upstream` remote was found.
+  - Submodules status confirmed clean (no dangling submodules).
+  - Recent merge commits merged features such as `hal-646-zh-tw`, `fix-cctv-session-admission`, `mobile-4d-world-app`, and `course launch checklist`.
+- **Environment & Engine Invariants**:
+  - The project package.json specifies Node engines `>=24.14.0 <25 || >=26 <27`.
+  - In environments running Node v22, `npm run doctor` flags this appropriately. Ensure Node 24 is used when running GC-calibrated allocation benchmark tests (`src/data/focusAllocations.test.mjs`, `src/overlays/worldOverlayAllocation.test.mjs`).
+
+## 3. Governance Files Established
+- `VERSION.md`: Single source of truth for version and build tracking.
+- `ROADMAP.md`: Four-phase roadmap covering sensor fusion, HAL, wearable/implant hubs, and edge deployment.
+- `TODO.md`: Granular tactical tracker for bugs and UI consolidation.
+- `VISION.md`: Platform vision on sovereign omniscience, ethical boundaries, and local-first execution.
+- `MEMORY.md`: Architectural traits, state invariants, and proxy pipelines.
+- `DEPLOY.md`: Deployment workflows across native, Docker, Pinokio, and LAN proxies.
+- `IDEAS.md`: Research proposals for WebGPU point clouds, mesh telemetry, and AR glass integration.
+
+## 4. Immediate Guidance for Successor Agents
+- When modifying dashboard templates, ensure strings are translated or marked with `data-i18n`, `data-i18n-title`, or `data-i18n-aria-label` to maintain compatibility with `scripts/i18n.mjs`.
+- Always verify changes against individual test suites before invoking the full test runner.
