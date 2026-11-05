@@ -1,7 +1,6 @@
 import * as Cesium from 'cesium';
 import {
   layerTitle,
-  mapAnalystRecord,
   parseGeojsonLines,
 } from '../sources/infrastructureData.js';
 import { createInfrastructureOverlayEntry } from './infrastructureOverlayEntry.js';
@@ -1361,4 +1360,3 @@ function clampCardLine(value) {
   return text.length > 48 ? `${text.slice(0, 45)}...` : text;
 }
 
-export { mapAnalystRecord };

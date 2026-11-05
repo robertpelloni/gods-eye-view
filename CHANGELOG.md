@@ -4,6 +4,7 @@
 - Establish canonical governance architecture across `VERSION.md`, `ROADMAP.md`, `TODO.md`, `VISION.md`, `MEMORY.md`, `DEPLOY.md`, `IDEAS.md`, and `HANDOFF.md`.
 - Enhance dashboard navigation and layer controls with descriptive tooltip guidance and accessibility markers.
 - Define 4-phase technical roadmap for 360° sensor fusion, hardware abstraction layer (HAL), wearable/implantable telemetry, and sovereign awareness platform.
+- Fix syntax and package boundary declarations in `src/data/localGeojsonCore.js`, `src/data/dataCredits.js`, and `scripts/package-boundaries.json`.
 
 ---
 
