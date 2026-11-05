@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-sovereign.1] - 2026-11-04 (Build 1480, Codename: Omniscient Horizon)
+- Establish canonical governance architecture across `VERSION.md`, `ROADMAP.md`, `TODO.md`, `VISION.md`, `MEMORY.md`, `DEPLOY.md`, `IDEAS.md`, and `HANDOFF.md`.
+- Enhance dashboard navigation and layer controls with descriptive tooltip guidance and accessibility markers.
+- Define 4-phase technical roadmap for 360° sensor fusion, hardware abstraction layer (HAL), wearable/implantable telemetry, and sovereign awareness platform.
+
+---
+
 Add feed provenance to analyst/view answers and HUD context while retaining existing response fields and runner ownership (Matt Van Horn, #347).
 
 Analyst records for loaded satellites, datacenters and dams, with explicit bounded count/rank coverage (Matt Van Horn, #351).
