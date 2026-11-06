@@ -170,13 +170,13 @@
               </div>
               <p data-i18n>Chrome/Edge · WebUSB · one local tuner shared by FM and the Local ADS-B layer.</p>
               <div class="sdr-radio-actions">
-                <button id="sdr-connect-btn" class="panel-layer-toggle" type="button" aria-pressed="false" data-i18n>CONNECT</button>
+                <button id="sdr-connect-btn" class="panel-layer-toggle" type="button" aria-pressed="false" title="Connect to local USB RTL-SDR tuner" data-i18n-title data-i18n>CONNECT</button>
                 <button id="sdr-locate-btn" type="button" title="Use your location for faster ADS-B position decoding" data-i18n-title data-i18n>LOCATE</button>
                 <button id="sdr-change-device-btn" type="button" title="Choose a different RTL-SDR or receiver channel" data-i18n-title data-i18n>CHANGE DEVICE</button>
               </div>
               <div class="sdr-mode-row" role="group" aria-label="RTL-SDR receiver mode" data-i18n-aria-label>
-                <button id="sdr-mode-fm-btn" class="active" type="button" aria-pressed="true" translate="no">FM</button>
-                <button id="sdr-mode-adsb-btn" type="button" aria-pressed="false" translate="no">ADS-B · 1090</button>
+                <button id="sdr-mode-fm-btn" class="active" type="button" aria-pressed="true" translate="no" title="FM broadcast radio receiver mode" data-i18n-title>FM</button>
+                <button id="sdr-mode-adsb-btn" type="button" aria-pressed="false" translate="no" title="ADS-B 1090 MHz flight telemetry receiver mode" data-i18n-title>ADS-B · 1090</button>
               </div>
               <div class="sdr-gain-row">
                 <label for="sdr-gain-select" data-i18n>GAIN</label>
@@ -222,11 +222,11 @@
               <div class="sdr-frequency-row">
                 <label for="sdr-frequency-input" data-i18n>FM MHZ</label>
                 <input class="gev-field" id="sdr-frequency-input" type="number" min="87.5" max="108" step="0.1" value="98.5" inputmode="decimal" />
-                <button id="sdr-tune-btn" type="button" data-i18n>TUNE</button>
+                <button id="sdr-tune-btn" type="button" title="Tune SDR to entered FM frequency" data-i18n-title data-i18n>TUNE</button>
               </div>
               <div class="sdr-seek-row" role="group" aria-label="Seek broadcast FM stations" data-i18n-aria-label>
-                <button id="sdr-seek-back-btn" type="button" disabled data-i18n>◀ SEEK</button>
-                <button id="sdr-seek-forward-btn" type="button" disabled data-i18n>SEEK ▶</button>
+                <button id="sdr-seek-back-btn" type="button" disabled title="Seek previous FM broadcast frequency" data-i18n-title data-i18n>◀ SEEK</button>
+                <button id="sdr-seek-forward-btn" type="button" disabled title="Seek next FM broadcast frequency" data-i18n-title data-i18n>SEEK ▶</button>
               </div>
               <label class="radio-volume-row" for="sdr-volume">
                 <span data-i18n>SDR VOL</span>
