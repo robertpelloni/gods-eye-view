@@ -2,8 +2,10 @@
 
 ## [0.2.0-sovereign.1] - 2026-11-04 (Build 1480, Codename: Omniscient Horizon)
 - Establish canonical governance architecture across `VERSION.md`, `ROADMAP.md`, `TODO.md`, `VISION.md`, `MEMORY.md`, `DEPLOY.md`, `IDEAS.md`, and `HANDOFF.md`.
-- Enhance dashboard navigation and layer controls with descriptive tooltip guidance and accessibility markers.
+- Enhance dashboard navigation, display settings, and layer controls with descriptive tooltip guidance and accessibility markers across command dock, layer panels, and display controls.
+- Add accessible tooltips and clear parameter explanations for HUD Layout, Cyber Sonar (Speed/Decay), Bloom, Sharpen, and CRT scanline post-processing options.
 - Define 4-phase technical roadmap for 360° sensor fusion, hardware abstraction layer (HAL), wearable/implantable telemetry, and sovereign awareness platform.
+- Fix syntax and package boundary declarations in `src/data/localGeojsonCore.js`, `src/data/dataCredits.js`, and `scripts/package-boundaries.json`.
 
 ---
 
