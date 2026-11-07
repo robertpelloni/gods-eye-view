@@ -13,6 +13,7 @@
 - [ ] Enhance responsive mobile rail presentation to ensure effortless single-thumb access.
 
 ## Server & Environment Management
+- [x] Implement automated Pinokio lifecycle configuration test suite (`scripts/test-pinokio-config.test.mjs`).
 - [ ] Audit Pinokio background daemon runner (`pinokio/start.js` and `scripts/pinokio-start.mjs`) for clean process termination handling.
 - [ ] Provide explicit graceful shutdown endpoints in local server mode to terminate active proxies cleanly.
 - [ ] Add real-time proxy throughput telemetry to the developer diagnostics panel.

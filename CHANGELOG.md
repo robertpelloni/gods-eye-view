@@ -1,6 +1,7 @@
 # Changelog
 
 ## [0.2.0-sovereign.1] - 2026-11-04 (Build 1480, Codename: Omniscient Horizon)
+- Add automated Pinokio lifecycle configuration and deployment validation suite (`scripts/test-pinokio-config.test.mjs`).
 - Establish canonical governance architecture across `VERSION.md`, `ROADMAP.md`, `TODO.md`, `VISION.md`, `MEMORY.md`, `DEPLOY.md`, `IDEAS.md`, and `HANDOFF.md`.
 - Enhance dashboard navigation, display settings, and layer controls with descriptive tooltip guidance and accessibility markers across command dock, layer panels, and display controls.
 - Add accessible tooltips and clear parameter explanations for HUD Layout, Cyber Sonar (Speed/Decay), Bloom, Sharpen, and CRT scanline post-processing options.
