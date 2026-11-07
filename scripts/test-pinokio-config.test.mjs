@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 
@@ -30,4 +32,17 @@ test('pinokio configuration files are valid and loadable', () => {
   const reset = require('../pinokio/reset.js');
   assert.equal(typeof reset, 'object');
   assert.ok(Array.isArray(reset.run));
+});
+
+test('pinokio package.json and environment defaults meet security and isolation invariants', () => {
+  const pinokioPkg = require('../pinokio/package.json');
+  assert.equal(pinokioPkg.type, 'commonjs');
+
+  const envPath = path.resolve('pinokio/_ENVIRONMENT');
+  assert.ok(fs.existsSync(envPath));
+  const envContent = fs.readFileSync(envPath, 'utf8');
+
+  assert.ok(envContent.includes('PINOKIO_SHARE_CLOUDFLARE=false'));
+  assert.ok(envContent.includes('PINOKIO_SHARE_LOCAL=false'));
+  assert.ok(envContent.includes('PINOKIO_SHARE_VAR=__gev_sharing_disabled__'));
 });
