@@ -4,6 +4,9 @@
 - Establish canonical governance architecture across `VERSION.md`, `ROADMAP.md`, `TODO.md`, `VISION.md`, `MEMORY.md`, `DEPLOY.md`, `IDEAS.md`, and `HANDOFF.md`.
 - Enhance dashboard navigation, display settings, and layer controls with descriptive tooltip guidance and accessibility markers across command dock, layer panels, and display controls.
 - Add accessible tooltips and clear parameter explanations for HUD Layout, Cyber Sonar (Speed/Decay), Bloom, Sharpen, and CRT scanline post-processing options.
+- Add descriptive tooltips and accessible titles for local RTL-SDR radio controls (connect, FM / ADS-B mode switches, tuning, and frequency seeking).
+- Add descriptive tooltips and accessible titles for Cockpit utility radio controls (enable, previous, play, and next transport controls).
+- Detail Pinokio single-click deployment, hermetic runtime isolation, and update/repair lifecycle scripts in DEPLOY.md.
 - Define 4-phase technical roadmap for 360° sensor fusion, hardware abstraction layer (HAL), wearable/implantable telemetry, and sovereign awareness platform.
 - Fix syntax and package boundary declarations in `src/data/localGeojsonCore.js`, `src/data/dataCredits.js`, and `scripts/package-boundaries.json`.
 

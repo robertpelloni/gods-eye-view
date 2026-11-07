@@ -44,11 +44,17 @@ Mounted persistent directories:
 ---
 
 ## 3. Pinokio Single-Click Launcher
-Pinokio manages Node and dependency versions automatically:
-1. Open the Pinokio desktop client.
-2. Select **God's Eye View** repository.
-3. Click **Install**, then **Start**.
-Keys can be configured directly inside the application interface via **POWER UP → Provider Settings**.
+Pinokio provides a fully automated, sandboxed, and zero-configuration environment designed for seamless non-technical setup and sovereign local execution.
+
+### Advantages of Pinokio Deployment
+- **Hermetic Runtime Isolation**: Pinokio downloads and pins an exact standalone Node engine (v24 LTS) without contaminating host PATH or conflicting with system Node installs.
+- **Automated Lifecycle Scripting**:
+  - `install.js`: Validates disk permissions, runs dependency installation with production deduplication, and sets `.installed` marker.
+  - `start.js`: Launches Vite and local proxy daemons, automatically acquiring an ephemeral localhost port if default `4173` is occupied.
+  - `update.js`: Inspects incoming upstream commits with visual diffstat before pulling; prevents unexpected breaking updates.
+  - `reset.js`: Clean repair sequence that flushes corrupt node_modules or invalid build caches without losing user `.env` secrets.
+- **Out-of-the-Box Keyless Boot**: Automatically launches into live satellite imagery (Esri World Imagery) and keyless 3D terrain with zero API keys required.
+- **Integrated Secret Governance**: API keys (OpenAI Realtime, Google Places, Cesium Ion) can be safely added via **POWER UP → Provider Settings** without editing filesystem configuration.
 
 ---
 
