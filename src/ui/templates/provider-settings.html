@@ -5,7 +5,7 @@
   <!-- Bottom-right HUD row: the POWER UP chip (while keys are missing) and
        the language picker that src/ui/localePicker.js renders into #locale-picker. -->
   <div id="corner-actions">
-    <button id="key-setup-chip" type="button" hidden aria-haspopup="dialog" aria-controls="key-setup">
+    <button id="key-setup-chip" type="button" hidden aria-haspopup="dialog" aria-controls="key-setup" title="Configure local API keys and data provider credentials in POWER UP settings" data-i18n-title>
       <span class="material-symbols-outlined" aria-hidden="true">bolt</span>
       <span data-key-setup-chip-label data-i18n>POWER UP</span>
     </button>
@@ -15,7 +15,7 @@
     <div class="key-setup-scanline" aria-hidden="true"></div>
     <header class="key-setup-header">
       <span class="key-setup-kicker" data-i18n>GROUND STATION · PROVIDER SETTINGS</span>
-      <button type="button" class="key-setup-close" data-key-setup-close aria-label="Close key setup" data-i18n-aria-label>
+      <button type="button" class="key-setup-close" data-key-setup-close aria-label="Close key setup" title="Close provider settings dialog" data-i18n-aria-label data-i18n-title>
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </header>

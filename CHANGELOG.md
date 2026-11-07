@@ -6,6 +6,7 @@
 - Add accessible tooltips and clear parameter explanations for HUD Layout, Cyber Sonar (Speed/Decay), Bloom, Sharpen, and CRT scanline post-processing options.
 - Add descriptive tooltips and accessible titles for local RTL-SDR radio controls (connect, FM / ADS-B mode switches, tuning, and frequency seeking).
 - Add descriptive tooltips and accessible titles for Cockpit utility radio controls (enable, previous, play, and next transport controls).
+- Enrich POWER UP provider settings launcher and close controls with accessible guidance tooltips.
 - Detail Pinokio single-click deployment, hermetic runtime isolation, and update/repair lifecycle scripts in DEPLOY.md.
 - Define 4-phase technical roadmap for 360° sensor fusion, hardware abstraction layer (HAL), wearable/implantable telemetry, and sovereign awareness platform.
 - Fix syntax and package boundary declarations in `src/data/localGeojsonCore.js`, `src/data/dataCredits.js`, and `scripts/package-boundaries.json`.
